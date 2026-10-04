@@ -942,7 +942,7 @@ class LilypondCreator(wx.Frame):
     # Génération du fichier .ly
     # ------------------------------------------------------------------
 
-    def create_lilypond_file(self):
+    def create_lilypond_file(self, _event=None):
         """Assemble le contenu Lilypond et l'écrit dans le fichier choisi par l'utilisateur."""
         self._ensure_all_tabs_built()
         header_values = self._collect_header_values()
