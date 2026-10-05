@@ -2,11 +2,19 @@
 \include "settings.ily"
 \include "composers.ily"
 
-#(set-global-staff-size 14.7 )
+#(set-global-staff-size 18 )
 
 global = {
   \key c \major
   \time 4/4
+  \set Timing.beamExceptions = #'()
+  \set Timing.beatBase = #1/16
+  \set Timing.beatStructure = #'(2 3 3 2 3 3)
+}
+
+\paper {
+  page-count = 2
+  systems-per-page = 6
 }
 
 sopranoVoice = \fixed c'' {
