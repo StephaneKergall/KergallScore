@@ -137,13 +137,13 @@ left = \fixed c {
 }
 
 sopranoVoicePart = \new Staff \with {
-    instrumentName = "Soprano"
+    instrumentName = "Sop."
     midiInstrument = "flute"
 } { \sopranoVoice }
 \addlyrics { \verse }
 
 pianoPart = \new PianoStaff \with {
-    instrumentName = "Orgue"
+    instrumentName = "Org."
     midiMinimumVolume = #0.2
     midiMaximumVolume = #0.4
     connectArpeggios = ##t

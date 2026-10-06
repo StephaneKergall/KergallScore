@@ -21,10 +21,11 @@ sopranoVoice = \fixed c'' {
   \global
   \autoBeamOff
   R1*4
-  e1 f2~4. 8 g2.(d4) e2. r4
-  a2_(~8[a,]) b, c d4.(e8) d4. r8
-  g2_(~8[g,]) a, b, c4.(d8) c4. r8
-  c'2_(~8[c]) d[e] fis4.(e8 d4) a, b,2 r4
+  \set Staff.shortInstrumentName = ""
+  e1 f2.. 8 g2.(d4) e2. r4
+  a2 ~ 8 [a,] b, c d4.(e8) d4. r8
+  g2 ~ 8 [g,] a, b, c4.(d8) c4. r8
+  c'2 ~ 8 [c] d[e] fis4.(e8 d4) a, b,2 r4
   d4 e2~8 e[f g] a4.. a,16 4. r8
   d2~8 8[e] f g2 g,4. r8
   c2~8 8[d e] f2~8 8[g a] b4. a8 g4(d) e2. r4
@@ -34,7 +35,7 @@ sopranoVoice = \fixed c'' {
   c'16 2 d4. r8
   d2~8 8[c] b, g4.(e8) c4. r8
   f2~8 8 e d d'4. b8 g4. r8
-  a2~8 8[b] c' e'2_(~8[c']) g e d2_(~8[a])
+  a2~8 8[b] c' e'2 ~ 8 [c'] g e d2 ~ 8 [a]
   b[a] g[d'] b[g] f[d] b,[g,] c1 2. r4
   g1 1\fermata \bar "|."
 
@@ -153,13 +154,13 @@ left = \fixed c {
 }
 
 sopranoVoicePart = \new Staff \with {
-  instrumentName = "Soprano"
+  shortInstrumentName = "Sop."
   midiInstrument = "flute"
 } {\sopranoVoice }
 \addlyrics { \verse }
 
 pianoPart = \new PianoStaff \with {
-  instrumentName = "Orgue"
+  instrumentName = "Org."
   midiMinimumVolume = #0.2
   midiMaximumVolume = #0.4
   midiInstrument = "church organ"
