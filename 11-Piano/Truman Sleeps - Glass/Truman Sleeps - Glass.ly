@@ -140,7 +140,7 @@ ClavierPart = \new PianoStaff \with {
   \header {
     title = "TRUMAN SLEEPS"
     composer = \glass
-    poet = "The Truman Show"
+    poet = "The Truman Show (1998)"
   }
   \ClavierPart
   \layout {\context{\Staff \RemoveAllEmptyStaves }}
