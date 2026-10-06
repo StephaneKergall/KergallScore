@@ -12,3 +12,4 @@ lilypond-tmp-*.pdf
 Anima Christi - Frisina.midi
 Anima Christi - Frisina.pdf
 *.musicxml
+.fuse_hidden*
