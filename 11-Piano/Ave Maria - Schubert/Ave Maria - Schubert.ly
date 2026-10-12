@@ -15,29 +15,61 @@ sopranoVoice = \fixed c' {
     \autoBeamOff
     \tupletUp
     R1*2 \bar ".|:" bes4. a16 bes d'4..(c'16) bes4 r
-    c'4( \grace {d'16[c'])} bes[a] g[a] bes8 4 r8
-    d'8.(c'32[bes]) a16[g] d'[e'] d'4 cis'8
-    a16 a c'8. bes16 \tuplet 6/4 {a[c'] d' es'[c'] a}
-    \tuplet 3/2 {bes8 16} 4
-    d'16[c'] c'8.(a16) \tuplet 6/4 {g[b d'] f'[d' b]} c'4~
-    \tuplet 6/4 {16 g a bes c'32[bes] a g} f8 4 r8
-    c'8 16. 32 16. b32 c'16. d'32 c'16.(d'32) bes8 r
-    bes c'8. 16 \tuplet 6/4 {c'[b] c' es'[d'] c'} bes16. 32 8 r
-    bes8  c'8. 16 d'16. 32 \tuplet 3/2 {d'16[c'] d'} \acciaccatura f' es'8 8 r
-    g \acciaccatura d' c'8. 16 \tuplet 6/4 {bes[a] bes des'[c' bes]} c'4. r8
+    c'4  \grace {d'16[c']} bes[a] g[a] bes4 r8 d'
+    d'8. c'32[bes] a16[g] d' e' d'8. [ 16 ] cis'8.
+    a16 c'8. bes16 \tuplet 6/4 {a[c'] d' es' [c' a ] }
+    bes4.
+    d'16[c'] c'8. [ a16 ] \tuplet 6/4 {g[b ] d' f' [ d' b ] } c'4 ~
+    \tuplet 6/4 {16 g a bes [ \grace{c'32 [ bes ] }  a16 ] g}
+    f4 r8 f16 16
+    c'8. 16 16. [ b32 ] c'16. [ d'32 ] c'16. [ d'32 ] bes8 r
+    bes c'8. 16 \tuplet 6/4 {c' [ b c' es' d' c' ] } bes4 r8
+    bes8  c'8. 16 d'16. 32 \tuplet 3/2 {d'16 [ c' ] d' } \acciaccatura f' es'8 8 r
+    g16 16 \acciaccatura d' c'8. 16 \tuplet 6/4 {bes [a bes des' c' bes]} c'4. r8
     bes4. a16 bes d'4..(c'16) bes4 r4 r2 R1*2 r2 \bar "|."
 }
 
-verse = \lyricmode {
-    A -- ve Ma -- ri -- a,
-    Gra -- ti -- a ple -- na, Do -- mi -- nus te -- cum,
-    be -- ne -- dic -- ta tu in mu -- li -- e -- ri -- bus,
-    et be -- ne -- dic -- tus fruc -- tus ven -- tris tu -- i, Je -- su.
-    Sanc -- ta Ma -- ri -- a, ma -- ter De -- i,
-    o -- ra pro no -- bis, pec -- ca -- to -- ri -- bus,
-    nunc et in ho -- ra mor -- tis nos -- træ,
-    in ho -- ra mor -- tis nos -- træ.
-    A -- ve Ma -- ri -- a.
+verseOne = \strophemode 1 ##f 2 \lyricmode {
+    A4. -- ve16 Ma16 -- |
+    ri2 -- |
+    a,4 \skip 4 |
+    Gra4 -- \grace { ti8 -- } a8 -- ple8 -- |
+    na,4 \skip 8 Ma8 -- |
+    ri8. -- a16 Gra8 -- ti16 -- a16 |
+    ple4 -- na,8. Ma16 -- |
+    ri8. -- a16 \tuplet 6/4 { Gra8 -- ti16 -- a8 ple16 -- } |
+    na,4. A8 -- |
+    ve,4 \tuplet 6/4 { A8 -- ve_!16 Do8 -- mi16 -- } |
+    nus,4 \tuplet 6/4 { \skip 16 Do16 -- mi16 -- nus8 te16 -- } |
+    cum,4 \skip 8 be16 -- ne16 -- |
+    dic8. -- ta16 tu16. in32 mu16. -- li32 -- |
+    e16. -- ri32 -- bus,8 \skip 8 et8 |
+    be8. -- ne16 -- dic4 -- |
+    tus,4 \skip 8 et8 |
+    be8. -- ne16 -- dic16. -- tus32 \tuplet 3/2 { fruc8 -- tus16 } |
+    \grace { ven16 -- } \skip 8 tris,8 \skip 8 ve,16 -- tris16 |
+    \grace { tu16 -- } \skip 8. i,16 Je4 -- |
+    sus.4. \skip 8 |
+    A4. -- ve16 Ma16 -- |
+    ri2 -- |
+    a_!4 \skip 4 |
+}
+
+verseTwo = \strophemode 2 ##t 2 \lyricmode {
+  A4. -- ve16 Ma -- ri2 -- a,2
+  Ma4 -- ter8 De -- i,4.
+  O8 -- ra8. pro16 no -- bis pec -- ca -- to8. -- ri16 -- bus,8.
+  o16 -- ra,8. o16 -- \tuplet 6/4 {ra8 pro16 no8.} -- bis,4.
+  o8 -- ra,8. o16 -- \tuplet 6/4{ra8 pro16 no8.} -- bis4
+  \tuplet 6/4 {\skip16 pec16 -- ca -- to8 -- ri16} -- bus,4.
+  nunc8 et8. in16 ho8 -- ra mor -- tis,4
+  in8 ho8. -- ra16 \tuplet 6/4 {mor8 -- tis16 nos8.} -- træ,4.
+  in8 ho8. -- ra16 mor16. -- tis,32
+  \tuplet 6/4 {mor8 -- tis16 } nos8 -- træ,8
+  \skip8. in16 ho8. -- ra16 \tuplet 6/4 {mor8 -- tis16 nos8.} -- træ2
+  A4. -- ve16 Ma16 -- 
+    ri2 -- 
+    a_!4 \skip 4 
 }
 
 arpegeSimple = #(define-music-function
@@ -172,21 +204,25 @@ left = \fixed c, {
 }
 
 
-sopranoVoicePart = \new Staff \with {
-    instrumentName = "Soprano"
-    midiInstrument = "flute"
-} { \sopranoVoice }
-\addlyrics { \verse }
+sopranoVoicePart = <<
+    \new Staff = "soprano" \with {
+        instrumentName = "Soprano"
+        midiInstrument = "flute"
+    } { \sopranoVoice }
+    \new Lyrics \verseOne
+    \new Lyrics \verseTwo
+>>
 
 pianoPart = \new PianoStaff \with {
     instrumentName = "Orgue"
+    midiMinimumVolume = #0.2
+    midiMaximumVolume = #0.4
+    midiInstrument = "church organ"
 } <<
-    \new Staff = "right" \with {
-        midiInstrument = "church organ"
-    } \right
+    \new Staff = "right" \right
     \new Staff = "left" \with {
-        midiInstrument = "church organ"
-    } { \clef bass \left }
+        \clef bass
+    } \left
 >>
 
 \score {
@@ -198,6 +234,6 @@ pianoPart = \new PianoStaff \with {
         \sopranoVoicePart
         \pianoPart
     >>
-    \layout { \context {\Staff \RemoveEmptyStaves \RemoveAllEmptyStaves }}
-    \midi {\tempo 4 = 30 }
+    \layout { \context {\Staff \RemoveAllEmptyStaves }}
+    \midi {\tempo 4 = 35 }
 }
