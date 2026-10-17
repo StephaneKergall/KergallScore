@@ -26,6 +26,8 @@ PIANO_STAFFS_FR = ["Main droite", "Main gauche", "Pédalier"]
 
 # Catégories numérotées à ne pas proposer dans le sélecteur (grégorien, assemblages, commandes).
 EXCLUDED_CATEGORY_PREFIXES = ("08", "09", "99")
+
+# couleurs des boutons et du texte
 REMOVE_BUTTON_COLOUR = "#E57373"
 REMOVE_BUTTON_HOVER_COLOUR = "#EF9A9A"
 MUTED_BUTTON_COLOUR = "#8a8a8a"
@@ -207,7 +209,6 @@ class HeaderTab(wx.Panel):
         picker_sizer.Add(self.composer_results, 0, wx.EXPAND | wx.TOP, 10)
 
         new_composer = wx.Button(self.picker_frame, label="Nouveau nom")
-        _use_system_button_colours(new_composer)
         new_composer.Bind(wx.EVT_BUTTON, lambda _event: self.open_new_composer_popup())
         picker_sizer.Add(new_composer, 0, wx.TOP, 8)
         self.root_sizer.Add(self.picker_frame, 0, wx.ALL | wx.EXPAND, 12)
