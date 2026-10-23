@@ -656,6 +656,7 @@ class HeaderTab(wx.Panel):
         self.filename_modified = False
         self.root_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.left_scroll = wx.ScrolledWindow(self, style=wx.VSCROLL)
+        self.left_scroll.SetInitialSize((ENTRY_WIDTH + FIELD_LABEL_WIDTH, 300))
         self.left_scroll.SetScrollRate(0, 12)
         self.left_sizer = wx.BoxSizer(wx.VERTICAL)
         self.left_scroll.SetSizer(self.left_sizer)
@@ -1130,7 +1131,7 @@ class PartsTab(wx.Panel):
                     0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
                 )
                 count = wx.SpinCtrl(
-                    couplets_frame, min=1, max=len(NUMBERS), initial=1, size=(70, -1),
+                    couplets_frame, min=1, max=len(NUMBERS), initial=1,
                 )
                 self.parts[part]["couplets"] = count
                 couplets_sizer.Add(count, 0, wx.ALIGN_CENTER_VERTICAL)
@@ -1164,7 +1165,7 @@ class PartsTab(wx.Panel):
                     row_sizer = wx.BoxSizer(wx.HORIZONTAL)
                     row.SetSizer(row_sizer)
                     staff_count = wx.SpinCtrl(
-                        row, min=0, max=len(NUMBERS), initial=1, size=(70, -1),
+                        row, min=0, max=len(NUMBERS), initial=1,
                     )
                     self.parts[part]["staffs"].append(staff_count)
                     row_sizer.Add(staff_count, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
@@ -1283,7 +1284,7 @@ class MusicTab(wx.Panel):
                 )
             else:
                 widget = wx.SpinCtrl(
-                    self, min=20, max=400, initial=config["default"], size=(90, -1),
+                    self, min=20, max=400, initial=config["default"],
                 )
             config["var"] = widget
             grid.Add(widget, 0, wx.EXPAND)
