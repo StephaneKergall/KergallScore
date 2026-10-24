@@ -227,9 +227,18 @@ def meld(systems):
                     h=ns[i]
                     p=ly_pitch(h['pitch'])
                     acc=h['accident']
-                    if acc=='flat': p=p[0]+'f'+p[1:]
-                    elif acc=='sharp': p=p[0]+'s'+p[1:]
-                    elif acc=='natural': p=p+'!'
+                    if acc=='flat':
+                        # Use 'es' suffix (e.g., bes, aes becomes as in some cases, but follow LilyPond naming)
+                        letter = p[0]
+                        rest = p[1:] if len(p) > 1 else ''
+                        p = letter + 'es' + rest
+                    elif acc=='sharp':
+                        letter = p[0]
+                        rest = p[1:] if len(p) > 1 else ''
+                        p = letter + 'is' + rest
+                    elif acc=='natural':
+                        # No '!' for natural as per requirement
+                        pass
                     d=ly_dur(h['code'],h['beamed'],h['dot'])
                     # beam group
                     if h['beamed']:
@@ -241,9 +250,16 @@ def meld(systems):
                         for k in range(i+1,j+1):
                             h2=ns[k]
                             p2=ly_pitch(h2['pitch'])
-                            if h2['accident']=='flat': p2=p2[0]+'f'+p2[1:]
-                            elif h2['accident']=='sharp': p2=p2[0]+'s'+p2[1:]
-                            elif h2['accident']=='natural': p2=p2+'!'
+                            if h2['accident']=='flat':
+                                letter = p2[0]
+                                rest = p2[1:] if len(p2) > 1 else ''
+                                p2 = letter + 'es' + rest
+                            elif h2['accident']=='sharp':
+                                letter = p2[0]
+                                rest = p2[1:] if len(p2) > 1 else ''
+                                p2 = letter + 'is' + rest
+                            elif h2['accident']=='natural':
+                                pass
                             last=']' if k==j else ''
                             toks.append((p2,ly_dur(h2['code'],True,h2['dot']),last,h2['x']))
                         i=j+1

@@ -91,7 +91,6 @@ for v in range(4):
 ly = r'''\version "2.26.0"
 \include "settings.ily"
 \include "composers.ily"
-\language "english"
 
 global = {
   \autoBeamOff

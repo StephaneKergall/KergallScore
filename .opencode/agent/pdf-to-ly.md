@@ -116,7 +116,6 @@ Puis, dans l'ordre :
    `ARRANGER`, `COMPOSER`, `TOC_TITLE`, `TOC_COMPOSER`, `KEY`, `TIME`, `TEMPO`.
    Vérifie :
    - `\version "2.26.0"`, `\include "settings.ily"`, `\include "composers.ily"` ;
-   - `\language "english"` si les hauteurs sont en notation anglaise ;
    - voix `soprano`, `alto`, `tenor`, `bass` et `\clef "treble_8"` pour le ténor ;
    - `\key`, `\time`, `\tempo`, `\layout`, `\midi` ;
    - paroles dans des `\lyricmode` avec `--` (trait d'union) et `__` (mélisme)
@@ -161,8 +160,8 @@ includes, tagline, noms de voix, paroles, mise en page) et compile.
 - Chaque mesure totalise exactement le nombre de temps de l'armure (souvent 4/4).
 - Les clés sont correctes, notamment `treble_8` pour le ténor.
 - Les altérations sont explicites et cohérentes avec l'armure.
-- Les paroles sont alignées syllabe par syllabe ; les mélismes utilisent `__`
-  et les traits d'union `--` uniquement là où la source en a.
+- Les paroles sont alignées syllabe par syllabe ; les mélismes utilisent `__ _ _`
+  et les traits d'union `--`.
 - Le PDF généré a un nombre de pages raisonnable et les systèmes ne se chevauchent pas.
 - Aucune erreur ni warning LilyPond.
 - Le `.pdf` et le `.midi` sont régénérés à côté du `.ly`.
