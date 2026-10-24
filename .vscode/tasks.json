@@ -26,13 +26,6 @@
             "args": [
                 "${workspaceFolder}${pathSeparator}.prog${pathSeparator}new.py"
             ],
-            "windows": {
-                "command": "py",
-                "args": [
-                    "-3",
-                    "${workspaceFolder}${pathSeparator}.prog${pathSeparator}new.py"
-                ]
-            },
             "group": "build"
         },
         {
