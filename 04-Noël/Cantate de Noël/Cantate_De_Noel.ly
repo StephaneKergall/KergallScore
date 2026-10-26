@@ -407,7 +407,7 @@ PartPThreeVoiceOne = \relative d' {
    e4  d4  c2 | % 92
    b2  e4  e4 | % 93
    d8 [  e8 ] fis8 [ d8 ]  g4  cis,4 | % 94
-   d2  fis4  e8 [  b8 ] | % 95
+   d2  fis4  e8 [  d8 ] | % 95
    c4  e2  d4 | % 96
    d4 r2 b8 [  c8 ] | % 97
    d4  d4  d4  b8 [  c8 ] | % 98
@@ -442,7 +442,7 @@ tenorLyrics = \lyricmode {
   %2
   Il est Dieu, voi -- ci l'en -- cens
   dont le par -- fum l'ad -- o -- re.
-  La priè -- re au purs ac -- cents
+  La priè -- re aux purs ac -- cents
   en s'ex -- hal -- ant l'im -- plo -- re.
   Que nos voix a -- vec trans -- port
   pro -- cla -- ment le Dieu fort_!
@@ -577,8 +577,8 @@ PartPFourVoiceOne = \relative g {
    d4  e4  fis4  d4 | % 90
    g2  f4  f4 | % 91
    e8 [  fis8 ] g8  c,8  d2 | % 92
-   g,2  e'8 [  fis8 ] g8 [ e8 ] | % 93
-   b'8 [  cis8 ] d8 [ b8 ]  g8 [  e8 ]  a4 | % 94
+   g,2  g'8 [  a8 ] b8 [ g8 ] | % 93
+   b8 [  cis8 ] d8 [ b8 ]  g8 [  e8 ]  a4 | % 94
    d,4  d'8 [  c8 ]  b8 [  a8 ]  gis4 | % 95
    a4. ( gis8 ) a4 ( d,4 ) | % 96
    g4 r2  g8 [  a8 ] | % 97
@@ -588,8 +588,8 @@ PartPFourVoiceOne = \relative g {
   g8 [  a8 ]  b4  c2 | % 100
    g2  e4.  fis8 | % 101
    g4  c,4  d2 | % 102
-   g2  e8 [  fis8 ] g8 [ e8 ] | % 103
-   b'8 [  cis8 ] d8 [ b8 ]  g8 [  e8 ]  a4 | % 104
+   g2  g8 [  a8 ] b8 [ g8 ] | % 103
+   b8 [  cis8 ] d8 [ b8 ]  g8 [  e8 ]  a4 | % 104
    d,4  d'8 [  c8 ]  b8 [  a8 ]  gis4 | % 105
    a4. ( gis8 ) a4 ( d,4 ) | % 106
    g4 r4 r4  g8 [  a8 ] | % 107
@@ -614,7 +614,7 @@ bassLyrics = \lyricmode {
   %2
   Il est Dieu, voi -- ci l'en -- cens
   dont le par -- fum l'ad -- o -- re.
-  La priè -- re au purs ac -- cents
+  La priè -- re aux purs ac -- cents
   en s'ex -- hal -- ant l'im -- plo -- re.
   Que nos voix a -- vec trans -- port
   pro -- cla -- ment le Dieu fort_!
@@ -663,10 +663,10 @@ bassLyrics = \lyricmode {
 }
 
 
-\tocItemComposer "La Cantate de Noël" "Daquin"
+\tocItemComposer "Cantate de Noël" "Daquin"
 \score {
   \header {
-    title = "LA CANTATE DE NOËL"
+    title = "CANTATE DE NOËL"
     composer = \daquin
     poet = \markup \column {
       "Paroles : Chanoine Gustave Gaillardon (1864–1925)"
