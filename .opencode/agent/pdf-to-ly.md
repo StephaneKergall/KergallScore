@@ -17,7 +17,7 @@ compiler en PDF et MIDI.
 
 - Lis d'abord `AGENTS.md` et `.opencode/skills/pdf-to-ly/SKILL.md`.
 - Ne commit jamais, ne push jamais, sauf demande explicite de l'utilisateur.
-- Ne détruis jamais un `.ly` existant sans le lire et sans demander confirmation.
+- Ne modifie jamais un `.ly` existant sans le lire.
 - Utilise le LilyPond local : `.prog/lilypond-2.26.0/bin/lilypond` (jamais `lilypond` du PATH).
 - Vérifie toujours la compilation et signale les warnings/erreurs.
 - Si une information est incertaine (notation illisible, PDF scanné sans OCR, voix
