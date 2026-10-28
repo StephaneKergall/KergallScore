@@ -25,7 +25,7 @@ Il existe deux modes :
 | Mode | Quand l'utiliser | Comportement |
 |---|---|---|
 | **Génération from scratch** (historique) | Aucun squelette `.ly` fourni. | Générer un `.ly` complet selon les conventions du dépôt (comme pour *Christus factus est*). |
-| **Avec squelette `new.py`** (nouveau, prioritaire) | Un fichier `.ly` pré-généré par `.prog/new.py` est fourni (chemin explicite) ou détecté automatiquement à côté du PDF / avec un nom cohérent. | **Parser strictement le squelette et n'injecter que le contenu musical.** Ne pas régénérer la structure. Respecter à la lettre tout ce qui est déjà présent. |
+| **Avec squelette `new.py`** (prioritaire) | Un fichier `.ly` pré-généré par `.prog/new.py` est fourni (chemin explicite) ou détecté automatiquement à côté du PDF / avec un nom cohérent. | **Parser strictement le squelette et n'injecter que le contenu musical.** Ne pas régénérer la structure. Respecter à la lettre tout ce qui est déjà présent. |
 
 ### 1.1 Détection du squelette `new.py`
 
@@ -37,40 +37,66 @@ Accepter un squelette dans les cas suivants :
 
 **Si un squelette est détecté ou fourni, ce mode est prioritaire.** Le signaler clairement dans le rapport.
 
-### 1.2 Parsing strict du squelette
+### 1.2 Identification et parsing strict du squelette `new.py`
 
-Extraire et **conserver intégralement** les éléments suivants depuis le squelette :
+Un squelette généré par `.prog/new.py` présente une structure très reconnaissable. **Toujours l'identifier avant toute modification.**
 
+**Signatures typiques à rechercher :**
+- En-tête : `\version "2.26.0"`, `\include "settings.ily"`, `\include "composers.ily"` (dans cet ordre ou très proche)
+- Bloc `global = { ... }` généré par `build_global_block()` (contient `\key`, `\time`, éventuellement `\partial`, `\tempo` textuel, `\autoBeamOff`, etc.)
+- Variables musicales déclarées via `music_var()` : `soprano`, `alto`, `tenor`, `bass`, `sopranoOne`/`Two`..., `altoOne`/`Two`..., `tenorOne`/`Two`..., `bassOne`/`Two`..., `soloVoice`, `flute`, `right`, `rightOne`/`Two`..., `left`, `leftOne`/`Two`..., `pedal`, `pedalOne`/`Two`... (mode `\fixed c'`/`\fixed c` ou `\relative ...` selon le schéma)
+- Variables de paroles via `lyric_var()` : `VerseOne`/`VerseTwo`/... (partagées) ou `sopranoVerseOne`/..., `altoVerseOne`/..., `tenorVerseOne`/..., `bassVerseOne`/..., `soloVerseOne`/..., `fluteVerse` etc., souvent avec `\strophemode N ##f/##t \lyricmode { ... }`
+- Blocs parties : `ChoeurPart = ...` (généré par `choir_staff()`), `SoloPart = ...` (`solo_pack()`), `FlûtePart = ...` (`flute_pack()`), `ClavierPart = ...` (`clavier_pack()`) - structure exacte avec `\with {}`, `instrumentName`/`shortInstrumentName`, `midiInstrument`, graveurs (`Merge_rests_engraver`, `Ambitus_engraver`), clefs, `\voiceOne`/`\voiceTwo`, `<< >>`, `\new Staff`, `\new Voice`, `\new Lyrics`, `\lyricsto`
+- Bloc `\score { \header { ... } ... \layout { \context { \Staff \RemoveAllEmptyStaves } } \midi { \tempo ... } }` généré par `build_score_block()`
+- Éventuellement `\tocItem...` / `\tocItemComposer...`
+
+**Extraire et CONSERVER INTÉGRALEMENT** depuis le squelette :
 - `\version` (doit rester `"2.26.0"`)
 - `\include "settings.ily"`, `\include "composers.ily"`
-- Bloc `global = { ... }` (clé, mesure, anacrouse `\partial`, `\tempo` textuel, `\autoBeamOff`, `\mergeDifferentlyHeadedOn`, `\mergeDifferentlyDottedOn` s'ils sont présents). **Ne pas réécrire** sauf si explicitement nécessaire et justifié ; préférer respecter strictement.
+- Bloc `global = { ... }` entier (clé, mesure, anacrouse `\partial`, `\tempo` textuel, `\autoBeamOff`, `\mergeDifferentlyHeadedOn`, `\mergeDifferentlyDottedOn` s'ils sont présents). **Ne pas réécrire** sauf si explicitement nécessaire et justifié ; préférer respecter strictement.
 - Bloc `\header { ... }` entier (titre, sous-titres, compositeur/parolier/arrangeur sous forme d'identifiants `\...` ou de chaînes, dédicace, copyright, tagline, etc.). **Conserver intégralement les valeurs.**
-- Variables musicales existantes : `soprano`, `alto`, `tenor`, `bass`, `sopranoOne`, `sopranoTwo`, ..., `altoOne`/`Two`..., `tenorOne`/`Two`..., `bassOne`/`Two`..., `soloVoice`, `flute`, `right`, `rightOne`/`Two`..., `left`, `leftOne`/`Two`..., `pedal`, `pedalOne`/`Two`... et toute autre variable musicale déclarée.
-- Variables de paroles existantes : `VerseOne`/`VerseTwo`/... (paroles partagées), `sopranoVerseOne`/..., `altoVerseOne`/..., `tenorVerseOne`/..., `bassVerseOne`/..., `soloVerseOne`/..., `fluteVerse`, etc., selon l'usage de `\strophemode`.
-- Blocs parties avec leur structure exacte : `ChoeurPart`, `SoloPart`, `FlûtePart`, `ClavierPart` (et tout autre `*Part` présent). Conserver l'ordre, les `\with { ... }`, `instrumentName`/`shortInstrumentName`, `midiInstrument`, graveurs (`Merge_rests_engraver`, `Ambitus_engraver`), clefs, `\voiceOne`/`\voiceTwo`, structure `<< >>`, `\new Staff`, `\new Voice`, `\new Lyrics`, `\lyricsto`.
-- Bloc `\score { \header { ... } ... \layout { \context { \Staff \RemoveAllEmptyStaves } } \midi { \tempo ... } }` dans son intégralité. **Ne pas modifier** `\layout` ni `\midi` sauf si une erreur de compilation l'impose de manière minimale et justifiée.
+- Toutes les variables musicales déclarées avec leur **mode exact** (`\fixed c'` / `\fixed c` ou `\relative ...`), leur octave, et leur structure. **Ne pas convertir d'un mode à l'autre.**
+- Toutes les variables de paroles déclarées avec leur type exact (`\lyricmode` / `\strophemode ... \lyricmode`) et leur numérotation.
+- Blocs parties avec leur structure exacte : `ChoeurPart`, `SoloPart`, `FlûtePart`, `ClavierPart` (et tout autre `*Part` présent). Conserver l'ordre, les `\with { ... }`, `instrumentName`/`shortInstrumentName`, `midiInstrument`, graveurs, clefs, `\voiceOne`/`\voiceTwo`, structure `<< >>`, `\new Staff`, `\new Voice`, `\new Lyrics`, `\lyricsto`.
+- Bloc `\score { ... }` dans son intégralité. **Ne pas modifier** `\layout` ni `\midi` sauf si une erreur de compilation l'impose de manière minimale et justifiée.
 - `\tocItem...` / `\tocItemComposer...` s'ils sont présents.
 
-### 1.3 Règles d'injection (mode squelette)
+### 1.3 Règles d'injection (mode squelette `new.py`)
 
-**Injection uniquement.** Interdictions strictes :
+**PRINCIPE FONDAMENTAL : INJECTION UNIQUEMENT.** L'objectif est de **remplir le squelette existant**, pas de le régénérer.
 
-- Ne PAS renommer de variables
-- Ne PAS changer l'ordre des parties
-- Ne PAS réécrire le `\header`
-- Ne PAS modifier `\layout`/`\midi`
-- Ne PAS changer `\version`/includes
-- Ne PAS ajouter/supprimer de blocs `*Part` ou restructurer le `\score`
+**Interdictions strictes (NE JAMAIS FAIRE) :**
+- Ne PAS renommer de variables musicales ou de paroles
+- Ne PAS changer l'ordre des parties (`*Part`) ou leur ordre dans le `\score`
+- Ne PAS réécrire le `\header` (conserver tous les champs, valeurs, identifiants `\compositeur` etc.)
+- Ne PAS modifier `\layout` ni `\midi`
+- Ne PAS changer `\version` ou les `\include`
+- Ne PAS ajouter/supprimer de blocs `*Part`
+- Ne PAS restructurer le `\score` (conserver la structure `<< >>`, `\new Staff`, `\new Voice`, `\new Lyrics`, `\lyricsto` tels qu'ils sont)
+- Ne PAS convertir `\fixed` ↔ `\relative` ou changer l'octave déclarée
+- Ne PAS supprimer ou déplacer `\global` dans les variables musicales
 
-**Autorisations :**
+**Autorisations strictes :**
+- **SEULEMENT** remplir le **contenu entre `{ }`** des variables musicales existantes (`soprano`, `alto`, `tenor`, `bass`, `sopranoOne`/`Two`..., `altoOne`/`Two`..., `tenorOne`/`Two`..., `bassOne`/`Two`..., `soloVoice`, `flute`, `right`, `rightOne`/`Two`..., `left`, `leftOne`/`Two`..., `pedal`, `pedalOne`/`Two`... et toute autre variable musicale déclarée dans le squelette) avec la musique extraite du PDF (notes, rythmes, durées, altérations, silences, liaisons/indications si présentes dans la source et cohérentes avec le style du dépôt).
+- **SEULEMENT** remplir le **contenu entre `{ }`** des variables de paroles existantes (`VerseOne`/`VerseTwo`/..., `sopranoVerseOne`/..., `altoVerseOne`/..., `tenorVerseOne`/..., `bassVerseOne`/..., `soloVerseOne`/..., `fluteVerse`, etc.) avec les syllabes alignées depuis le PDF.
+- **Respecter** `\clef "treble_8"` si le ténor l'utilise déjà (ou s'il est requis par la structure du squelette). Respecter `\voiceOne`/`\voiceTwo` si des voix sont superposées dans les `*Part`.
+- **Respecter** `\lyricsto`, `\strophemode` déjà présents. Utiliser `--` pour les traits d'union et `__` pour les mélismes, exactement comme dans la source et de manière cohérente avec l'alignement.
+- **Conserver** `\autoBeamOff` s'il est dans `global`.
+- **Préserver** l'indentation, les espaces, et les commentaires existants dans la mesure du possible (édition chirurgicale, byte-à-byte quand faisable).
+- Si le squelette impose un schéma/voix différent de ce que montre le PDF (nombre de voix, répartition SA/TB, présence de solo/flûte/piano/orgue), **signaler clairement les écarts** et **demander confirmation avant d'injecter**, ou adapter l'injection au schéma existant **sans restructurer** le squelette.
 
-- Remplir **uniquement le contenu entre `{ }`** des variables musicales existantes (`soprano`, `alto`, `tenor`, `bass`, `soloVoice`, `flute`, `right`/`left`/`pedal` et variantes numérotées) avec la musique extraite du PDF (notes, rythmes, durées, altérations, silences, liaisons/indications si présentes dans la source et cohérentes avec le style du dépôt).
-- Remplir **uniquement le contenu entre `{ }`** des variables de paroles existantes avec les syllabes alignées depuis le PDF.
-- Respecter strictement le mode d'écriture déjà utilisé : `\fixed c'` / `\fixed c` ou `\relative ...` tel qu'employé dans le squelette. Ne pas convertir d'un mode à l'autre.
-- Respecter `\clef "treble_8"` si le ténor l'utilise déjà (ou s'il est requis par la structure). Respecter `\voiceOne`/`\voiceTwo` si des voix sont superposées.
-- Respecter `\lyricsto`, `\strophemode` déjà présents. Utiliser `--` pour les traits d'union et `__` pour les mélismes, exactement comme dans la source et de manière cohérente avec l'alignement.
-- Conserver `\autoBeamOff` s'il est dans `global`.
-- Si le squelette impose un schéma/voix différent de ce que montre le PDF (nombre de voix, répartition SA/TB, présence de solo/flûte/piano/orgue), **signaler clairement les écarts** et demander confirmation avant d'injecter, ou adapter l'injection au schéma existant sans le restructurer.
+### 1.4 Checklist pour mode squelette `new.py`
+
+Avant d'injecter, vérifier systématiquement :
+- [ ] Squelette identifié comme généré par `new.py` (signatures ci-dessus)
+- [ ] `\version "2.26.0"`, includes, `global`, `\header` lus et **non modifiés**
+- [ ] Liste complète des variables musicales extraite (avec leur mode `\fixed`/`\relative`)
+- [ ] Liste complète des variables de paroles extraite (avec `\strophemode` si présent)
+- [ ] Structure des `*Part` et mapping voix ↔ `\lyricsto` compris
+- [ ] Comparaison PDF vs squelette (voix, schéma, couplets) effectuée, écarts signalés
+- [ ] Injection limitée **uniquement** au contenu `{ }` des variables musicales/paroles
+- [ ] Après injection : `\header`, `\layout`, `\midi`, ordre des parties, includes inchangés
+- [ ] Compilation testée avec `.prog/lilypond-2.26.0/bin/lilypond`
 
 ## 2. Diagnostic
 
@@ -212,7 +238,7 @@ Après `musicxml2ly`, adapter le `.ly` aux conventions KergallScore :
 includes, en-tête, tagline, noms de voix, paroles, `\layout`, `\midi`.
 
 ### 4.2 Mode avec squelette `new.py` (injection)
-**Ne pas remplacer le squelette par le `.ly` brut généré par `musicxml2ly`.** 
+**Ne pas remplacer le squelette par le `.ly` brut généré par `musicxml2ly`.**
 
 Options :
 - Soit importer/convertir le MusicXML vers des données mappables et injecter uniquement dans les variables du squelette existant.
@@ -235,11 +261,48 @@ Vérifier :
 - clés correctes, notamment `\clef "treble_8"` pour le ténor si requis ;
 - altérations cohérentes avec la source ;
 - paroles complètes et alignées syllabe par syllabe ; mélismes `__` et traits d'union `--` corrects ;
+- paroles latines : accent uniquement sur la syllabe tonique des mots de plus d'une syllabe (voir §6) ;
 - `.pdf` et `.midi` générés à côté du `.ly` ;
 - `.pdf`/`.midi` régénérés après la dernière modification du `.ly` ;
-- **En mode squelette** : `\header` inchangé, includes/version inchangés, `\layout`/`\midi` inchangés, ordre des parties inchangé, seules les variables musicales/paroles ont été modifiées.
+- **En mode squelette** : `\header` inchangé, includes/version inchangés, `\layout`/`\midi` inchangés, ordre des parties inchangé, **seules les variables musicales/paroles ont été modifiées** (contenu entre `{ }` uniquement).
 
-## 6. Scripts
+## 6. Accentuation des paroles latines
+
+Pour un texte latin (*Tantum ergo*, *Pange lingua*, *Adoro te*…), ajouter l'accent
+aigu sur la **seule syllabe tonique** de chaque mot de **plus d'une syllabe**.
+Les monosyllabes (`Et`, `Laus`, `Sit`, `Com`, `Sum`…) ne prennent **jamais** d'accent,
+et une seule syllabe est accentuée par mot (jamais d'accent secondaire).
+
+Règle (prosodie latine ecclésiastique) :
+
+- accent sur la **pénultième** si elle est longue : voyelle longue par nature,
+  syllabe fermée par une consonne, ou diphtongue (`æ`, `œ`, `au`, `eu`) ;
+- sinon accent sur l'**antépénultième** ;
+- les mots à enclitique `-que` sont accentués sur la syllabe qui précède
+  l'enclitique (`Ge -- ni -- tó -- que`, `u -- tró -- que`, `quó -- que`).
+
+Exemples de référence :
+
+| Latin | Paroles |
+|---|---|
+| Tantum | `Tán -- tum` |
+| Veneremur | `Ve -- né -- re -- mur` |
+| cernui | `cér -- nu -- i` |
+| Præstet | `Prǽ -- stet` |
+
+Exception :
+- Amen : pas d'accent, reste `A -- men`
+
+Contraintes :
+
+- ne pas modifier la division en syllabes, les `--` (traits d'union), les `__`
+  (mélismes) ni l'ordre des mots ; ne pas toucher à `\strophemode`, `\lyricsto`,
+  aux en-têtes ni à la musique ;
+- utiliser de préférence les caractères précomposés (`á é í ó ú ý`, `ǽ` U+01FD
+  pour `æ`), sinon une combinaison base + U+0301 ;
+- recompiler et vérifier qu'aucun nouvel avertissement de paroles n'apparaît.
+
+## 7. Scripts
 
 - `scripts/setup_venv.sh` — crée un venv avec pypdf/fontTools.
 - `scripts/py.sh` — choisit le Python adéquat.
