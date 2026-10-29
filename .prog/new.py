@@ -217,7 +217,13 @@ def generic_var(identifier: str, expression: str, content: str = "") -> str:
     """Bloc Lilypond générique : ``identifiant = expression { contenu }``."""
     if content and not content.endswith("\n"):
         content += "\n"
-    return f"{identifier} = {expression} {{\n{content}}}\n\n"
+    return (
+        f"{identifier} = {expression} {{\n"
+        +f"{content}"
+        "  \n"
+        "}\n"
+        "\n"
+    )
 
 
 def music_var(identifier: str, fixed: bool, high: bool, global_var: str) -> str:
@@ -623,11 +629,37 @@ def build_score_block(header_values: dict[str, str], parts: dict[str, str], midi
     )
 
 
+def _couplet_unitaire_fin() -> str:
+    "Squelette d'un couplet en fin de partition"
+    return (
+        "  \\column {\n"
+        "    \n"
+        "  }\n"
+    )
+
+def build_markup_couplets_block(index_debut: int, nombre_couplets: int) -> str:
+    "Bloc ``\\markup \\couplets-markup ... {}`` pour les couplets en fin de partition"
+    "si tous les couplets ne sont pas entre les portées."
+    if nombre_couplets > 0:
+        return (
+            "\n"
+            "\\markup \\couplets-markup "
+            + f"#{index_debut} #{nombre_couplets}"
+            + "{\n"
+            + _couplet_unitaire_fin()*nombre_couplets
+            + "}\n"
+        )
+    else:
+        return ""
+
+
 def build_document(
     settings: MusicSettings,
     header_values: dict[str, str],
     parts: dict[str, str],
     composers: dict[str, str] | None = None,
+    nombre_couplets: int = 0,
+    index_debut: int = 0,
 ) -> str:
     """Document Lilypond complet, prêt à être écrit dans un fichier .ly."""
     if not parts:
@@ -641,6 +673,7 @@ def build_document(
             composers,
         )
         + build_score_block(header_values, parts, settings.midi_tempo)
+        + build_markup_couplets_block(index_debut, nombre_couplets)
     )
 
 
@@ -1104,9 +1137,9 @@ class PartsTab(wx.Panel):
         self.SetSizer(main_sizer)
 
         self.parts: dict[str, dict] = {
-            "Flûte": {},
-            "Solo": {},
-            "Choeur": {},
+            "Flûte":   {},
+            "Solo":    {},
+            "Choeur":  {},
             "Clavier": {},
         }
 
@@ -1312,7 +1345,7 @@ class MusicTab(wx.Panel):
             partial = ""
 
         tempo_text = self._read("Indication de tempo")
-        midi_tempo = int(self.vars["Tempo du midi"]["var"].GetValue())
+        midi_tempo = self.vars["Tempo du midi"]["var"].GetValue()
         
         return MusicSettings(key, time_signature, partial, tempo_text, midi_tempo)
 
