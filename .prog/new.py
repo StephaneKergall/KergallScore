@@ -176,7 +176,7 @@ def validate_file_stem(stem: str) -> None:
     """Vérifie qu'un nom de dossier peut être créé sur le système de fichiers."""
     if not stem:
         raise GenerationError("Le nom du dossier est vide.")
-    if stem in (".", "..") or stem.startswith("."):
+    if stem.startswith("."):
         raise GenerationError("Le nom du dossier ne peut pas commencer par un point.")
     if stem != stem.rstrip(". "):
         raise GenerationError("Le nom du dossier ne peut pas se terminer par un point ou une espace.")
