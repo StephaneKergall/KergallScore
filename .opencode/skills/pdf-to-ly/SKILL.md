@@ -261,7 +261,7 @@ Vérifier :
 - clés correctes, notamment `\clef "treble_8"` pour le ténor si requis ;
 - altérations cohérentes avec la source ;
 - paroles complètes et alignées syllabe par syllabe ; mélismes `__` et traits d'union `--` corrects ;
-- paroles latines : accent uniquement sur la syllabe tonique des mots de plus d'une syllabe (voir §6) ;
+- paroles latines : accent uniquement sur la syllabe tonique des mots de plus d'une syllabe, sans jamais accentuer une lettre majuscule (voir §6) ;
 - `.pdf` et `.midi` générés à côté du `.ly` ;
 - `.pdf`/`.midi` régénérés après la dernière modification du `.ly` ;
 - **En mode squelette** : `\header` inchangé, includes/version inchangés, `\layout`/`\midi` inchangés, ordre des parties inchangé, **seules les variables musicales/paroles ont été modifiées** (contenu entre `{ }` uniquement).
@@ -269,9 +269,11 @@ Vérifier :
 ## 6. Accentuation des paroles latines
 
 Pour un texte latin (*Tantum ergo*, *Pange lingua*, *Adoro te*…), ajouter l'accent
-aigu sur la **seule syllabe tonique** de chaque mot de **plus d'une syllabe**.
-Les monosyllabes (`Et`, `Laus`, `Sit`, `Com`, `Sum`…) ne prennent **jamais** d'accent,
-et une seule syllabe est accentuée par mot (jamais d'accent secondaire).
+aigu sur la **seule syllabe tonique** de chaque mot de **plus d'une syllabe**,
+sauf si la voyelle tonique est elle-même une majuscule (voir la règle des
+majuscules ci-dessous). Les monosyllabes (`Et`, `Laus`, `Sit`, `Com`, `Sum`…)
+ne prennent **jamais** d'accent, et une seule syllabe est accentuée par mot
+(jamais d'accent secondaire).
 
 Règle (prosodie latine ecclésiastique) :
 
@@ -290,16 +292,26 @@ Exemples de référence :
 | cernui | `cér -- nu -- i` |
 | Præstet | `Prǽ -- stet` |
 
-Exception :
-- Amen : pas d'accent, reste `A -- men`
+**Règle générale des majuscules** :
+
+- les lettres majuscules ne prennent **jamais** d'accent : aucune majuscule
+  accentuée (`Á`, `É`, `Í`, `Ó`, `Ú`, `Ý`, `Ǽ`…) ne doit être employée dans les
+  paroles ;
+- si la voyelle tonique est une majuscule (mot ou vers commençant par une
+  voyelle capitalisée), elle reste **sans accent**, même si la prosodie latine
+  l'exigerait : *Amen* → `A -- men` (et non `Á -- men`) ;
+- une consonne majuscule en début de mot n'empêche pas l'accent sur la voyelle
+  minuscule : les minuscules accentuées restent accentuées (`Tán -- tum`,
+  `Ve -- né -- re -- mur`).
 
 Contraintes :
 
 - ne pas modifier la division en syllabes, les `--` (traits d'union), les `__`
   (mélismes) ni l'ordre des mots ; ne pas toucher à `\strophemode`, `\lyricsto`,
   aux en-têtes ni à la musique ;
-- utiliser de préférence les caractères précomposés (`á é í ó ú ý`, `ǽ` U+01FD
-  pour `æ`), sinon une combinaison base + U+0301 ;
+- pour les minuscules, utiliser de préférence les caractères précomposés
+  (`á é í ó ú ý`, `ǽ` U+01FD pour `æ`), sinon une combinaison base + U+0301 ;
+  ne jamais appliquer cet accent à une majuscule ;
 - recompiler et vérifier qu'aucun nouvel avertissement de paroles n'apparaît.
 
 ## 7. Scripts
