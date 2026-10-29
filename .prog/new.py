@@ -618,7 +618,7 @@ def build_score_block(header_values: dict[str, str], parts: dict[str, str], midi
         + "  }\n"
         + build_instruments_reference(parts)
         + "  \\layout {\\context{\\Staff \\RemoveAllEmptyStaves }}\n"
-        + f"  \\midi {{\\tempo 4={midi_tempo} }}\n"
+        + f"  \\midi {{\\tempo {midi_tempo} }}\n"
         + "}\n"
     )
 
@@ -1269,13 +1269,13 @@ class MusicTab(wx.Panel):
                 "default": "",
             },
             "Tempo du midi": {
-                "default": 70,
+                "default": "4=70",
             },
         }
 
         grid = wx.FlexGridSizer(rows=len(self.vars), cols=2, vgap=8, hgap=8)
         grid.AddGrowableCol(1, 1)
-        for row, (label, config) in enumerate(self.vars.items()):
+        for (label, config) in self.vars.items():
             grid.Add(wx.StaticText(self, label=label, size=(150, -1)), 0, wx.ALIGN_CENTER_VERTICAL)
             if "val" in config:
                 widget = wx.ComboBox(
@@ -1283,8 +1283,8 @@ class MusicTab(wx.Panel):
                     size=(220, -1), style=wx.CB_DROPDOWN,
                 )
             else:
-                widget = wx.SpinCtrl(
-                    self, min=20, max=400, initial=config["default"],
+                widget = wx.TextCtrl(
+                    self, value=config["default"],
                 )
             config["var"] = widget
             grid.Add(widget, 0, wx.EXPAND)
@@ -1306,25 +1306,14 @@ class MusicTab(wx.Panel):
             raise GenerationError(
                 f"Chiffre de mesure invalide : « {time_signature} ». Exemple : 4/4."
             )
-        numerator, denominator = (int(part) for part in time_signature.split("/"))
-        if numerator < 1 or denominator < 1:
-            raise GenerationError(
-                f"Chiffre de mesure invalide : « {time_signature} ». Les deux nombres doivent être positifs."
-            )
-
+        
         partial = self._read("Anacrouse")
         if partial == "0":
             partial = ""
-        elif not _PARTIAL_RE.fullmatch(partial):
-            raise GenerationError(f"Anacrouse invalide : « {partial} ». Exemple : 4 ou 4.")
-        elif int(partial.rstrip(".")) < 1:
-            raise GenerationError(f"Anacrouse invalide : « {partial} ». Utilisez une durée positive.")
 
         tempo_text = self._read("Indication de tempo")
         midi_tempo = int(self.vars["Tempo du midi"]["var"].GetValue())
-        if not 20 <= midi_tempo <= 400:
-            raise GenerationError("Le tempo MIDI doit être compris entre 20 et 400.")
-
+        
         return MusicSettings(key, time_signature, partial, tempo_text, midi_tempo)
 
 
