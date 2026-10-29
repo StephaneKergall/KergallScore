@@ -18,7 +18,7 @@ soprano = \relative c'' {
   2 d |
   c bes |
   c d |
-  bes2. a4 | \break
+  bes2. a4 | 
   g1 ~ |
   2 c |
   c d |
@@ -26,7 +26,7 @@ soprano = \relative c'' {
   bes a |
   bes4. a8 g2 ~ |
   2 fis |
-  g r4 g ~ |\break
+  g r4 g ~ |
   4 4 bes2 |
   g f ~ |
   2 bes |
@@ -34,7 +34,7 @@ soprano = \relative c'' {
   4 d c bes ~ |
   4 a8 [ g ] a4 4 |
   bes2 r |
-  c1 |\break
+  c1 |
   es |
   c |
   d |
@@ -96,9 +96,9 @@ alto = \fixed c' {
 
 altoVerseOne = \lyricmode {
   O Crux a _ _ _ _ -- ve,
-  spes __ _ u _ _ _ _ -- ní -- ca, __
+  spes __ _ u _ _ _ _ -- ní -- ca,
   hoc pas -- si -- ó -- nis
-  tem -- pó -- re,
+  tem -- pó -- re, __
   aú -- ge pí -- is
   ju _ -- stí _ -- ti -- am
   re -- ís -- que dó -- na, __
@@ -144,7 +144,7 @@ tenor = \relative c' {
 
 tenorVerseOne = \lyricmode {
   O Crux __ _ _ a _ _ _ _ -- ve, __
-  spes u _ _ _ _ _ -- ní -- ca, __
+  spes u _ _ _ _ _ -- ní -- ca,
   hoc pas -- si -- ó _ _ -- nis
   tem _ _ _ _ -- pó -- re,
   aú -- ge pí -- is __ _ _ _
@@ -193,7 +193,7 @@ bass = \fixed c {
 
 bassVerseOne = \lyricmode {
   O Crux a _ _ -- ve, a -- ve,
-  spes __ _ u -- ní -- ca, __
+  spes __ _ u -- ní -- ca,
   hoc pas -- si -- ó -- nis
   tem -- pó -- re,
   aú -- ge pí -- is __ _
