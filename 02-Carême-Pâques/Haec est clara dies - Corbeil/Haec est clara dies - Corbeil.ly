@@ -149,12 +149,12 @@ bass = \fixed c {
 }
 
 verse = \lyricmode {
-  Haec __ _ est cla -- ra di -- es, 
-  cla -- ra -- rum cla -- ra die -- e -- rum.
-  Haec __ _ est fes -- ta di -- es,
-  fes -- ta -- rum fes -- ta di -- e -- rum.
-  No -- bi -- le no -- bi _ -- li -- um,
-  ru -- ti -- lans di -- a de -- ma, di -- e -- rum.
+  Hæc __ _ est clá -- ra dí -- es, 
+  cla -- rá -- rum clá -- ra di -- é -- rum.
+  Hæc __ _ est fés -- ta dí -- es,
+  fes -- tá -- rum fés -- ta di -- é -- rum.
+  No -- bí -- le no -- bi _ -- lí -- um,
+  ru -- tí -- lans dí -- a dé -- ma, di -- é -- rum.
 }
 
 
