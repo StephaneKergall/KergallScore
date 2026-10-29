@@ -43,7 +43,7 @@ soprano = \fixed c {
   c''2 bes'2
   c''1
   a'2 <a' d''>2
-  <g' d''>1 <d'' bes'>1
+  <g' d''>1 <d'' bes'>1 \bar "|."
 }
 
 alto = \fixed c {
