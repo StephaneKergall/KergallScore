@@ -555,7 +555,11 @@ def build_global_block(settings: MusicSettings) -> str:
     if settings.partial:
         lines.append(f"  \\partial {settings.partial}")
     if settings.tempo_text:
-        lines.append(f"  \\tempo {ly_string(settings.tempo_text)}")
+        # distinction di l'indication de tempo est textuelle ou numérique
+        if "=" in settings.tempo_text:
+            lines.append(f"  \\tempo {settings.tempo_text}")
+        else:
+            lines.append(f"  \\tempo {ly_string(settings.tempo_text)}")
     lines.append("}")
     return "\n".join(lines) + "\n\n"
 
