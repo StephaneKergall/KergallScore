@@ -57,9 +57,7 @@ _TRANSLITERATION = str.maketrans({
     "ß": "ss", "đ": "d", "Đ": "D", "ł": "l", "Ł": "L", "þ": "th", "Þ": "Th",
     "ð": "d", "Ð": "D",
 })
-_KEY_RE = re.compile(r"[a-g](?:is|es)?")
 _TIME_RE = re.compile(r"\d+/\d+")
-_PARTIAL_RE = re.compile(r"\d+\.?")
 _SCHEMA_RE = re.compile(r"[SATBH]+(?:-[SATBH]+)*")
 
 
@@ -1329,11 +1327,7 @@ class MusicTab(wx.Panel):
     def read_settings(self) -> MusicSettings:
         """Lit et valide les réglages musicaux."""
         key = self._read("Armure").lower()
-        if not _KEY_RE.fullmatch(key):
-            raise GenerationError(
-                f"Armure invalide : « {key} ». Utilisez par exemple c, fis ou bes."
-            )
-
+        
         time_signature = re.sub(r"\s+", "", self._read("Chiffre de mesure"))
         if not _TIME_RE.fullmatch(time_signature):
             raise GenerationError(
