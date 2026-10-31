@@ -627,7 +627,7 @@ def build_score_block(header_values: dict[str, str], parts: dict[str, str], midi
         + build_instruments_reference(parts)
         + "  \\layout {\\context{\\Staff \\RemoveAllEmptyStaves }}\n"
         "  \\midi {"
-        + f"\\tempo {midi_tempo}" if midi_tempo else ""
+        + (f"\\tempo {midi_tempo}" if midi_tempo else "")
         + " }\n"
         "}\n"
     )
