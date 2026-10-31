@@ -160,7 +160,7 @@ ClavierPart = \new PianoStaff \with {
 \score {
   \header {
     title = "L'OISEAU"
-    subtitle = "Belle et Sébastien"
+    composer = "Belle et Sébastien"
     poet = "Paroles : Cécile Aubry"
   }
   <<
