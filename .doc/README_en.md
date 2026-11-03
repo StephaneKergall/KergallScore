@@ -24,14 +24,14 @@
 
 - **Put together** a complete folder for your choir, table of contents included ([like this one](../99-Commandes/carnet_été/carnet_été.pdf))
 
-KergallScore has solutions for you. [We're waiting for your requests](mailto:stef.kergall@gmail.com) Monday to Saturday!
+KergallScore has solutions for you. [We're waiting for your requests](mailto:stef.kergall@gmail.com?subject=Score%20request&body=Hello%20Stéphane,%0D%0AI%20would%20like%20to%20order%20the%20score%20...,%20thank%20you%20in%20advance!%0D%0AKind%20regards,%0D%0A%0D%0A) Monday to Saturday!
 
 ## Developers
 
 More information [over here](DEVELOPERS.md).
 
 ## Legal notice
-We produce scores from a variety of independent sources. If one of them turned out not to be free of rights, [let us know immediately](mailto:stef.kergall@gmail.com) so we can protect the work of our fellow musicians.
+We produce scores from a variety of independent sources. If one of them turned out not to be free of rights, [let us know immediately](mailto:stef.kergall@gmail.com?subject=Copyright&body=Hello%20Stéphane,%0D%0AI%20found%20the%20score%20...%20on%20KergallScore,%20which%20is%20protected%20by%20copyright.%20Please%20check%20your%20rights%20to%20it.%0D%0AKind%20regards,%0D%0A%0D%0A) so we can protect the work of our fellow musicians.
 
 
 [[français]](../README.md)
