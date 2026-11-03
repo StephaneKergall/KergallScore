@@ -40,7 +40,7 @@ verse = \lyricmode {
 
 \tocItem \markup "Credo III"
 \markup \column {
-  \fill-line { \null \bold {\fontsize #5 "CREDO III POLYPHONIQUE"} \berchten}
+  \fill-line {\bold \fontsize #5 "CREDO III POLYPHONIQUE"}
   \fill-line {
     \epsfile #X #140 #"cache/credoIII_1.png"
   }
