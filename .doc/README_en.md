@@ -8,11 +8,11 @@
 | --- | --- |
 | <img src="readme_medias/Venez_mes_enfants-old.png" width="1000px"/> | <a href="../04-Noël/Venez mes enfants/Venez mes enfants.pdf"><img src="readme_medias/Venez mes enfants.png" width="1000px"/></a> |
 
-- **Hear** what a song sounds like when all you have is the pdf
+- **Hear** what a song sounds like when all you have is the pdf, and even get a video from.
 
 | Before | After |
 | --- | --- |
-| <img src="readme_medias/et_incarnatus_est_old.jpg" width="1000px"/> | <a href="https://www.youtube.com/watch?v=dzlRLgd_ito"><img src="readme_medias/Et incarnatus est.jpg" width="1000px"/></a> |
+| <img src="readme_medias/et_incarnatus_est_old.jpg" width="1000px"/> | <a href="https://youtu.be/nbZK8lDLM_Q"><img src="readme_medias/Et incarnatus est.jpg" width="1000px"/></a> |
 
 - **Harmonize** a melody found by chance
 

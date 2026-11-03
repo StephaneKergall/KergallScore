@@ -8,11 +8,11 @@
 | --- | --- |
 | <img src=".doc/readme_medias/Venez_mes_enfants-old.png" width="1000px"/> | <a href="04-Noël/Venez mes enfants/Venez mes enfants.pdf"><img src=".doc/readme_medias/Venez mes enfants.png" width="1000px"/></a> |
 
-- **Entendre** à quoi ressemble un chant dont vous n'avez que le pdf
+- **Entendre** à quoi ressemble un chant dont vous n'avez que le pdf, ou même en avoir une vidéo.
 
 | Avant | Après |
 | --- | --- |
-| <img src=".doc/readme_medias/et_incarnatus_est_old.jpg" width="1000px"/> | <a href="https://www.youtube.com/watch?v=dzlRLgd_ito"><img src=".doc/readme_medias/Et incarnatus est.jpg" width="1000px"/></a> |
+| <img src=".doc/readme_medias/et_incarnatus_est_old.jpg" width="1000px"/> | <a href="https://youtu.be/nbZK8lDLM_Q"><img src=".doc/readme_medias/Et incarnatus est.jpg" width="1000px"/></a> |
 
 - **Réduire** le nombre de pages d'une partition, ou mettre sur la même feuille deux pièces différentes [(comme ici)](08-Assemblages/Jesu%20Salvator%20-%20Jesu%20Rex%20admirabilis/Jesu%20Salvator%20-%20Jesu%20Rex%20admirabilis.pdf)
 
