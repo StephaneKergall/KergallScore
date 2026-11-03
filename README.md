@@ -24,7 +24,7 @@
 | --- | --- |
 | <img src=".doc/readme_medias/Noble époux de Marie-old.png" width="1000px"/> | <a href="01-Général/Noble-époux-de-Marie/Noble-époux-de-Marie.pdf"><img src=".doc/readme_medias/Noble-époux-de-Marie.png" width="1000px"/></a> |
 
-KergallScore vous propose des solutions. [Nous attendons vos commandes](mailto:stef.kergall@gmail.com) du lundi au samedi !
+KergallScore vous propose des solutions. [Nous attendons vos commandes](mailto:stef.kergall@gmail.com?subject=Commande%20de%20partition&body=Bonjour%20Stéphane,%0D%0AJe%20voudrais%20passer%20commande%20pour%20la%20partition%20...%20,%20merci%20d'avance%20!%0D%0ACordialement,%0D%0A%0D%0A) du lundi au samedi !
 
 ## Développeurs
 
