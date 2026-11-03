@@ -182,7 +182,7 @@ tenorTwoLyricsOne = \lyricmode {
   Be -- a -- ti mor -- tu -- i
   in Do -- mi -- no mo -- ri -- en -- tes,
   be -- a -- ti mor -- tu -- i,
-  be -- a -- ti, be -- a -- ti mor -- tu -- i __
+  be -- a -- ti, be -- a -- ti mor -- tu -- i
   be -- a -- ti de in -- ceps,
   be -- a -- ti mor --  tu -- i,
   be -- a -- ti,
