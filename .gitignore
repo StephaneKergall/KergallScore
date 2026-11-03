@@ -14,4 +14,5 @@ Anima Christi - Frisina.pdf
 *.musicxml
 .fuse_hidden*
 ly2video/
+pdf2video/
 *.mp4
