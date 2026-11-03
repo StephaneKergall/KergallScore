@@ -1,4 +1,6 @@
 {
     "vslilypond.compilation.compileMainFileOnSave": false,
-    "vslilypond.compilation.compileOnSave": false
+    "vslilypond.compilation.compileOnSave": false,
+    "git.autoRepositoryDetection": "subFolders",
+    "git.repositoryScanMaxDepth": 3
 }
