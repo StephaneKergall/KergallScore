@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Transcription vectorielle (référence Maestro, 4 voix S/A/T/B).
 
-Variables d'environnement :
+Ce module est importable : l'import n'exécute aucun travail. Utiliser
+`transcribe_pages()` pour un modèle explicite, ou `model_from_env()` (mémoïsé)
+pour la compatibilité avec les variables d'environnement historiques.
+
+Variables d'environnement (CLI et `model_from_env`) :
   PDF_JSON   parsed.json produit par parse_pdf.py (défaut /tmp/pdftoly/parsed.json)
   FONT_TTF   police musicale extraite (défaut /tmp/pdftoly/fonts/R7_Maestro.ttf)
   OUT_DIR    dossier de sortie (défaut /tmp/pdftoly)
@@ -15,285 +19,476 @@ Variables d'environnement :
   ACC_CODES  altérations code:nom (défaut 4:flat,12:natural,13:sharp)
   DOT_CODE   code du point de prolongation (défaut 15)
 """
-import json, math, re, html, subprocess, os, sys
+import os
 from collections import defaultdict
 from pathlib import Path
-from fontTools.ttLib import TTFont
 
-BASE=Path(os.environ.get('SCORE_DIR', Path.cwd()))
-WORK=Path(os.environ.get('OUT_DIR', '/tmp/pdftoly'))
-PDF_JSON=Path(os.environ.get('PDF_JSON', WORK/'parsed.json'))
-FONT_TTF=Path(os.environ.get('FONT_TTF', WORK/'fonts'/'R7_Maestro.ttf'))
-BEATS=float(os.environ.get('BEATS','4'))
-CLEFS=os.environ.get('CLEFS','treble,treble,treble,bass').split(',')
-TOPNAMES=os.environ.get('TOPNAMES','F5,F5,F5,A3').split(',')
-TRANSPOSE=[int(x) for x in os.environ.get('TRANSPOSE','0,0,-1,0').split(',')]
-NOTE_CODES=tuple(int(x) for x in os.environ.get('NOTE_CODES','6,9,11').split(','))
-REST_CODES=tuple(int(x) for x in os.environ.get('REST_CODES','16').split(','))
-ACC_CODES={int(k):v for k,v in (x.split(':') for x in os.environ.get('ACC_CODES','4:flat,12:natural,13:sharp').split(','))}
-DOT_CODE=int(os.environ.get('DOT_CODE','15'))
-MUSIC_FONT=os.environ.get('MUSIC_FONT','R7')
-WORK.mkdir(parents=True, exist_ok=True)
+import jsonio
 
-pages=json.load(open(PDF_JSON))
-font=TTFont(str(FONT_TTF)); glyf=font['glyf']
-codes=list(range(1,24))
-bbox={c:(glyf[f'uniF{c:03X}'].xMin,glyf[f'uniF{c:03X}'].yMin,glyf[f'uniF{c:03X}'].xMax,glyf[f'uniF{c:03X}'].yMax) for c in codes if f'uniF{c:03X}' in glyf}
-def mul(m1,m2):
-    a1,b1,c1,d1,e1,f1=m1; a2,b2,c2,d2,e2,f2=m2
-    return (a1*a2+b1*c2,a1*b2+b1*d2,c1*a2+d1*c2,c1*b2+d1*d2,e1*a2+f1*c2+e2,e1*b2+f1*d2+f2)
-def gb(g):
-    M=mul(tuple(g['Tm']),tuple(g['ctm'])); s=g['size']/1000.0
-    x0,y0,x1,y1=bbox[g['code']]
-    pts=[(M[0]*(x*s)+M[2]*(y*s)+M[4],M[1]*(x*s)+M[3]*(y*s)+M[5]) for x,y in [(x0,y0),(x1,y0),(x0,y1),(x1,y1)]]
-    xs=[p[0] for p in pts]; ys=[p[1] for p in pts]
-    return min(xs),min(ys),max(xs),max(ys)
-LETTERS=['C','D','E','F','G','A','B']
-def note_name(s,topname):
-    idx=int(topname[1])*7+LETTERS.index(topname[0])-s
-    return LETTERS[idx%7]+str(idx//7)
+DEFAULT_NOTE_CODES = (6, 9, 11)
+DEFAULT_REST_CODES = (16,)
+DEFAULT_ACC_CODES = {4: "flat", 12: "natural", 13: "sharp"}
+DEFAULT_DOT_CODE = 15
+DEFAULT_MUSIC_FONT = "R7"
+
+
+def config_from_env(env=None):
+    """Construit la configuration de transcription depuis l'environnement."""
+    e = os.environ if env is None else env
+    return {
+        "beats": float(e.get("BEATS", "4")),
+        "clefs": e.get("CLEFS", "treble,treble,treble,bass").split(","),
+        "topnames": e.get("TOPNAMES", "F5,F5,F5,A3").split(","),
+        "transpose": [int(x) for x in e.get("TRANSPOSE", "0,0,-1,0").split(",")],
+        "note_codes": tuple(int(x) for x in e.get("NOTE_CODES", "6,9,11").split(",")),
+        "rest_codes": tuple(int(x) for x in e.get("REST_CODES", "16").split(",")),
+        "acc_codes": {
+            int(k): v
+            for k, v in (
+                x.split(":")
+                for x in e.get("ACC_CODES", "4:flat,12:natural,13:sharp").split(",")
+            )
+        },
+        "dot_code": int(e.get("DOT_CODE", "15")),
+        "music_font": e.get("MUSIC_FONT", DEFAULT_MUSIC_FONT),
+    }
+
+
+def load_pages(pdf_json):
+    return jsonio.load(pdf_json)
+
+
+def font_bbox(font_ttf):
+    """Boîtes englobantes des codes 1..23 d'une police TrueType musicale."""
+    try:
+        from fontTools.ttLib import TTFont
+    except ImportError as exc:
+        raise SystemExit("fontTools est requis : pip install fonttools") from exc
+    try:
+        font = TTFont(str(font_ttf))
+        glyf = font["glyf"]
+    except Exception as exc:
+        raise SystemExit(
+            f"Police illisible par fontTools ({font_ttf}) : {exc}. "
+            "Fournir une police TrueType avec --font."
+        ) from exc
+    bbox = {}
+    for c in range(1, 24):
+        name = f"uniF{c:03X}"
+        if name in glyf:
+            g = glyf[name]
+            bbox[c] = (g.xMin, g.yMin, g.xMax, g.yMax)
+    return bbox
+
+
+def mul(m1, m2):
+    a1, b1, c1, d1, e1, f1 = m1
+    a2, b2, c2, d2, e2, f2 = m2
+    return (
+        a1 * a2 + b1 * c2, a1 * b2 + b1 * d2,
+        c1 * a2 + d1 * c2, c1 * b2 + d1 * d2,
+        e1 * a2 + f1 * c2 + e2, e1 * b2 + f1 * d2 + f2,
+    )
+
+
+def gb(g, bbox):
+    M = mul(tuple(g["Tm"]), tuple(g["ctm"]))
+    s = g["size"] / 1000.0
+    x0, y0, x1, y1 = bbox[g["code"]]
+    pts = [
+        (M[0] * (x * s) + M[2] * (y * s) + M[4],
+         M[1] * (x * s) + M[3] * (y * s) + M[5])
+        for x, y in [(x0, y0), (x1, y0), (x0, y1), (x1, y1)]
+    ]
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+LETTERS = ["C", "D", "E", "F", "G", "A", "B"]
+
+
+def note_name(s, topname):
+    idx = int(topname[1]) * 7 + LETTERS.index(topname[0]) - s
+    return LETTERS[idx % 7] + str(idx // 7)
+
+
 def ly_pitch(name):
-    letter=name[0]; octv=int(name[1])
+    letter = name[0]
+    octv = int(name[1])
     # LilyPond absolute: c=C3, c'=C4, c''=C5
-    base=letter.lower()
-    if octv==3: return base
-    if octv==4: return base+"'"
-    if octv==5: return base+"''"
-    if octv==6: return base+"'''"
-    if octv==2: return base+","
-    if octv==1: return base+",,"
+    base = letter.lower()
+    if octv == 3:
+        return base
+    if octv == 4:
+        return base + "'"
+    if octv == 5:
+        return base + "''"
+    if octv == 6:
+        return base + "'''"
+    if octv == 2:
+        return base + ","
+    if octv == 1:
+        return base + ",,"
     return base
-def ly_dur(code,beamed,dotted):
-    base={6:'1',9:'2',11:('8' if beamed else '4')}[code]
-    return base+('.' if dotted else '')
 
-def build(pg):
-    hs=[]
-    for (x0,y0),(x1,y1) in pg['segments']:
-        if abs(y0-y1)<0.3 and abs(x1-x0)>200: hs.append((min(x0,x1),max(x0,x1),(y0+y1)/2))
-    ys=sorted(set(round(y,1) for _,_,y in hs),reverse=True)
-    staves=[]; cur=[]
+
+def ly_dur(code, beamed, dotted):
+    base = {6: "1", 9: "2", 11: ("8" if beamed else "4")}[code]
+    return base + ("." if dotted else "")
+
+
+def build_page(pg, cfg, bbox):
+    music_font = cfg["music_font"]
+    note_codes = cfg["note_codes"]
+    acc_codes = cfg["acc_codes"]
+    dot_code = cfg["dot_code"]
+    hs = []
+    for (x0, y0), (x1, y1) in pg["segments"]:
+        if abs(y0 - y1) < 0.3 and abs(x1 - x0) > 200:
+            hs.append((min(x0, x1), max(x0, x1), (y0 + y1) / 2))
+    ys = sorted(set(round(y, 1) for _, _, y in hs), reverse=True)
+    staves = []
+    cur = []
     for y in ys:
-        if cur and cur[-1]-y>6: staves.append(cur); cur=[]
+        if cur and cur[-1] - y > 6:
+            staves.append(cur)
+            cur = []
         cur.append(y)
-    if cur: staves.append(cur)
-    vlines=[]
-    for (x0,y0),(x1,y1) in pg['segments']:
-        if abs(x0-x1)<0.4 and 17.5<=abs(y1-y0)<=20.5:
-            vlines.append(((x0+x1)/2,min(y0,y1),max(y0,y1)))
-    stems=[]
-    for (x0,y0),(x1,y1) in pg['segments']:
-        if abs(x0-x1)<0.4 and 10<=abs(y1-y0)<=20:
-            stems.append(((x0+x1)/2,min(y0,y1),max(y0,y1)))
-    heads=[]
-    for g in pg['glyphs']:
-        if g['font']==MUSIC_FONT and g['code'] in NOTE_CODES:
-            xmin,ymin,xmax,ymax=gb(g); cx=(xmin+xmax)/2; cy=(ymin+ymax)/2
-            best=min(range(len(staves)), key=lambda i: abs(cy-(staves[i][0]+staves[i][-1])/2))
-            h={'x':cx,'y':cy,'code':g['code'],'staff':best,'beamed':False,'dot':False,'accident':None}
-            cand=[s for s in stems if abs(s[0]-cx)<=6 and s[1]-2<=cy<=s[2]+2]
+    if cur:
+        staves.append(cur)
+    vlines = []
+    for (x0, y0), (x1, y1) in pg["segments"]:
+        if abs(x0 - x1) < 0.4 and 17.5 <= abs(y1 - y0) <= 20.5:
+            vlines.append(((x0 + x1) / 2, min(y0, y1), max(y0, y1)))
+    stems = []
+    for (x0, y0), (x1, y1) in pg["segments"]:
+        if abs(x0 - x1) < 0.4 and 10 <= abs(y1 - y0) <= 20:
+            stems.append(((x0 + x1) / 2, min(y0, y1), max(y0, y1)))
+    heads = []
+    for g in pg["glyphs"]:
+        if g["font"] == music_font and g["code"] in note_codes:
+            xmin, ymin, xmax, ymax = gb(g, bbox)
+            cx = (xmin + xmax) / 2
+            cy = (ymin + ymax) / 2
+            best = min(
+                range(len(staves)),
+                key=lambda i: abs(cy - (staves[i][0] + staves[i][-1]) / 2),
+            )
+            h = {
+                "x": cx, "y": cy, "code": g["code"], "staff": best,
+                "beamed": False, "dot": False, "accident": None,
+            }
+            cand = [s for s in stems if abs(s[0] - cx) <= 6 and s[1] - 2 <= cy <= s[2] + 2]
             if cand:
-                s=min(cand,key=lambda s:abs(s[0]-cx))
-                h['stem']=s; h['tip']=s[1] if abs(s[1]-cy)>abs(s[2]-cy) else s[2]
+                s = min(cand, key=lambda s: abs(s[0] - cx))
+                h["stem"] = s
+                h["tip"] = s[1] if abs(s[1] - cy) > abs(s[2] - cy) else s[2]
             heads.append(h)
-    hsegs=[]
-    for (x0,y0),(x1,y1) in pg['segments']:
-        if abs(y1-y0)<=2.5 and 5<=abs(x1-x0)<=50:
-            hsegs.append((min(x0,x1),max(x0,x1),(y0+y1)/2))
-    parent={id(h):id(h) for h in heads}
+    hsegs = []
+    for (x0, y0), (x1, y1) in pg["segments"]:
+        if abs(y1 - y0) <= 2.5 and 5 <= abs(x1 - x0) <= 50:
+            hsegs.append((min(x0, x1), max(x0, x1), (y0 + y1) / 2))
+    parent = {id(h): id(h) for h in heads}
+
     def find(x):
-        while parent[x]!=x: parent[x]=parent[parent[x]]; x=parent[x]
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
         return x
-    def union(a,b):
-        ra,rb=find(id(a)),find(id(b))
-        if ra!=rb: parent[ra]=rb
-    for xx0,xx1,yy in hsegs:
-        touch=[]
+
+    def union(a, b):
+        ra, rb = find(id(a)), find(id(b))
+        if ra != rb:
+            parent[ra] = rb
+
+    for xx0, xx1, yy in hsegs:
+        touch = []
         for h in heads:
-            if 'tip' not in h: continue
-            if (xx0-2.5 <= h['stem'][0] <= xx1+2.5) and abs(h['tip']-yy)<=5.0:
+            if "tip" not in h:
+                continue
+            if (xx0 - 2.5 <= h["stem"][0] <= xx1 + 2.5) and abs(h["tip"] - yy) <= 5.0:
                 touch.append(h)
-        touch=list({id(h):h for h in touch}.values())
+        touch = list({id(h): h for h in touch}.values())
         for i in range(len(touch)):
-            for j in range(i+1,len(touch)):
-                if touch[i]['staff']==touch[j]['staff']: union(touch[i],touch[j])
-    groups=defaultdict(list)
-    for h in heads: groups[find(id(h))].append(h)
+            for j in range(i + 1, len(touch)):
+                if touch[i]["staff"] == touch[j]["staff"]:
+                    union(touch[i], touch[j])
+    groups = defaultdict(list)
+    for h in heads:
+        groups[find(id(h))].append(h)
     for g in groups.values():
-        if len(g)>=2:
-            for h in g: h['beamed']=True
-    dots=[]
-    for g in pg['glyphs']:
-        if g['font']==MUSIC_FONT and g['code']==DOT_CODE:
-            xmin,ymin,xmax,ymax=gb(g); dots.append(((xmin+xmax)/2,(ymin+ymax)/2))
+        if len(g) >= 2:
+            for h in g:
+                h["beamed"] = True
+    dots = []
+    for g in pg["glyphs"]:
+        if g["font"] == music_font and g["code"] == dot_code:
+            xmin, ymin, xmax, ymax = gb(g, bbox)
+            dots.append(((xmin + xmax) / 2, (ymin + ymax) / 2))
     for h in heads:
-        for dx,dy in dots:
-            if 0<dx-h['x']<10 and abs(dy-h['y'])<6: h['dot']=True
-    accs=[]
-    for g in pg['glyphs']:
-        if g['font']==MUSIC_FONT and g['code'] in ACC_CODES:
-            xmin,ymin,xmax,ymax=gb(g)
-            ay=(ymin+ymax)/2-(2.58 if g['code']==4 else 0.0)
-            accs.append((g['code'],(xmin+xmax)/2,ay))
+        for dx, dy in dots:
+            if 0 < dx - h["x"] < 10 and abs(dy - h["y"]) < 6:
+                h["dot"] = True
+    accs = []
+    for g in pg["glyphs"]:
+        if g["font"] == music_font and g["code"] in acc_codes:
+            xmin, ymin, xmax, ymax = gb(g, bbox)
+            ay = (ymin + ymax) / 2 - (2.58 if g["code"] == 4 else 0.0)
+            accs.append((g["code"], (xmin + xmax) / 2, ay))
     for h in heads:
-        best=None
-        for code,ax,ay in accs:
-            dy=ay-h['y']
-            if code==4: dy+=2.58
-            if 0< h['x']-ax < 14 and abs(dy)<4:
-                if best is None or h['x']-ax<best[0]: best=(h['x']-ax,code)
-        if best: h['accident']=ACC_CODES[best[1]]
-    systems=[]
-    for i in range(0,len(staves),4):
-        if i+3<len(staves): systems.append(staves[i:i+4])
-    return staves,systems,vlines,heads
+        best = None
+        for code, ax, ay in accs:
+            dy = ay - h["y"]
+            if code == 4:
+                dy += 2.58
+            if 0 < h["x"] - ax < 14 and abs(dy) < 4:
+                if best is None or h["x"] - ax < best[0]:
+                    best = (h["x"] - ax, code)
+        if best:
+            h["accident"] = acc_codes[best[1]]
+    systems = []
+    for i in range(0, len(staves), 4):
+        if i + 3 < len(staves):
+            systems.append(staves[i:i + 4])
+    return staves, systems, vlines, heads
 
-all_systems=[]
-for pg in pages:
-    staves,systems,vlines,heads=build(pg)
-    for sysno,st4 in enumerate(systems):
-        ytop=st4[0][0]; ybot=st4[-1][-1]
-        bars=sorted(set(round(x,1) for x,y0,y1 in vlines if y1>=ybot-1 and y0<=ytop+1))
-        merged=[]
-        for b in bars:
-            if not merged or b-merged[-1]>5: merged.append(b)
-        bars=merged
-        left=min((min(x0,x1) for (x0,y0),(x1,y1) in pg['segments'] if abs(y0-y1)<0.3 and abs(x1-x0)>200 and abs((y0+y1)/2-ytop)<0.6), default=70)
-        all_systems.append({'page':pg['page'],'sysno':sysno,'staves':st4,'bars':bars,'heads':heads,'left':left})
 
-def meld(systems):
-    out=[]
-    for si,sysd in enumerate(systems):
+def collect_systems(pages, cfg, bbox):
+    all_systems = []
+    for pg in pages:
+        staves, systems, vlines, heads = build_page(pg, cfg, bbox)
+        for sysno, st4 in enumerate(systems):
+            ytop = st4[0][0]
+            ybot = st4[-1][-1]
+            bars = sorted(set(
+                round(x, 1) for x, y0, y1 in vlines if y1 >= ybot - 1 and y0 <= ytop + 1
+            ))
+            merged = []
+            for b in bars:
+                if not merged or b - merged[-1] > 5:
+                    merged.append(b)
+            bars = merged
+            left = min(
+                (
+                    min(x0, x1)
+                    for (x0, y0), (x1, y1) in pg["segments"]
+                    if abs(y0 - y1) < 0.3
+                    and abs(x1 - x0) > 200
+                    and abs((y0 + y1) / 2 - ytop) < 0.6
+                ),
+                default=70,
+            )
+            all_systems.append({
+                "page": pg["page"], "sysno": sysno, "staves": st4,
+                "bars": bars, "heads": heads, "left": left,
+            })
+    return all_systems
+
+
+def meld(systems, cfg):
+    beats = cfg["beats"]
+    clefs = cfg["clefs"]
+    topnames = cfg["topnames"]
+    transpose = cfg["transpose"]
+    out = []
+    for si, sysd in enumerate(systems):
         for voice in range(4):
-            staff=sysd['sysno']*4+voice
-            clef=CLEFS[voice]
-            nn=sorted([h for h in sysd['heads'] if h['staff']==staff],key=lambda h:h['x'])
-            # measures: index by bars; start measure 0
-            meas=defaultdict(list)
+            staff = sysd["sysno"] * 4 + voice
+            clef = clefs[voice]
+            nn = sorted(
+                [h for h in sysd["heads"] if h["staff"] == staff],
+                key=lambda h: h["x"],
+            )
+            meas = defaultdict(list)
             for h in nn:
-                m=sum(1 for b in sysd['bars'] if h['x']>b)
+                m = sum(1 for b in sysd["bars"] if h["x"] > b)
                 meas[m].append(h)
-            measures=[]
-            for m in range(len(sysd['bars'])):
-                ns=meas.get(m,[])
-                # base durations
+            measures = []
+            for m in range(len(sysd["bars"])):
+                ns = meas.get(m, [])
                 for h in ns:
-                    s=round((sysd['staves'][voice][0]-h['y'])/2.341)
-                    h['pitch']=note_name(s,TOPNAMES[voice])
-                    if TRANSPOSE[voice]:
-                        h['pitch']=h['pitch'][0]+str(int(h['pitch'][1])+TRANSPOSE[voice])
-                    h['dur']={6:4,9:2,11:(0.5 if h['beamed'] else 1)}[h['code']]
-                total=sum(h['dur']*(1.5 if h['dot'] else 1) for h in ns)
-                # if overfull, drop dots first
-                if total>BEATS+1e-6 and any(h['dot'] for h in ns):
-                    for h in ns: h['dot']=False
-                    total=sum(h['dur'] for h in ns)
-                # if still overfull, convert quarter->eighth using closest gaps
-                tries=0
-                while total>BEATS+1e-6 and tries<10:
-                    tried=False
-                    for k in range(len(ns)-1,-1,-1):
-                        h=ns[k]
-                        if h['code']==11 and not h['beamed']:
-                            h['dur']=0.5; total-=0.5; tried=True; break
-                    if not tried: break
-                    tries+=1
-                # fill underfull with rests at end
+                    s = round((sysd["staves"][voice][0] - h["y"]) / 2.341)
+                    h["pitch"] = note_name(s, topnames[voice])
+                    if transpose[voice]:
+                        h["pitch"] = h["pitch"][0] + str(int(h["pitch"][1]) + transpose[voice])
+                    h["dur"] = {6: 4, 9: 2, 11: (0.5 if h["beamed"] else 1)}[h["code"]]
+                total = sum(h["dur"] * (1.5 if h["dot"] else 1) for h in ns)
+                if total > beats + 1e-6 and any(h["dot"] for h in ns):
+                    for h in ns:
+                        h["dot"] = False
+                    total = sum(h["dur"] for h in ns)
+                tries = 0
+                while total > beats + 1e-6 and tries < 10:
+                    tried = False
+                    for k in range(len(ns) - 1, -1, -1):
+                        h = ns[k]
+                        if h["code"] == 11 and not h["beamed"]:
+                            h["dur"] = 0.5
+                            total -= 0.5
+                            tried = True
+                            break
+                    if not tried:
+                        break
+                    tries += 1
                 if not ns:
-                    measures.append([('R','1','',None)]); continue
-                rests=[]
-                rest_pos=None
-                if total<BEATS-1e-6:
-                    need=BEATS-total
-                    while need>1e-6:
-                        if need>=2: rests.append(2); need-=2
-                        elif need>=1: rests.append(1); need-=1
-                        else: rests.append(0.5); need-=0.5
-                    # choose largest gap between left barline and notes/right barline
-                    left=sysd['bars'][m-1] if m>0 else sysd['left']
-                    right=sysd['bars'][m] if m<len(sysd['bars']) else sysd['bars'][-1]
-                    pts=[h['x'] for h in ns]
-                    gaps=[]
-                    gaps.append((pts[0]-left,'start'))
-                    for k in range(len(pts)-1):
-                        gaps.append((pts[k+1]-pts[k],k))
-                    gaps.append((right-pts[-1],'end'))
-                    rest_pos=max(gaps,key=lambda g:g[0])[1]
-                # build tokens with beam brackets, inserting rests at rest_pos
-                toks=[]; i=0
-                if rest_pos=='start':
-                    for r in rests: toks.append(('r',{2:'2',1:'4',0.5:'8'}[r],'',None))
-                while i<len(ns):
-                    h=ns[i]
-                    p=ly_pitch(h['pitch'])
-                    acc=h['accident']
-                    if acc=='flat':
-                        # Use 'es' suffix (e.g., bes, aes becomes as in some cases, but follow LilyPond naming)
+                    measures.append([("R", "1", "", None)])
+                    continue
+                rests = []
+                rest_pos = None
+                if total < beats - 1e-6:
+                    need = beats - total
+                    while need > 1e-6:
+                        if need >= 2:
+                            rests.append(2)
+                            need -= 2
+                        elif need >= 1:
+                            rests.append(1)
+                            need -= 1
+                        else:
+                            rests.append(0.5)
+                            need -= 0.5
+                    left = sysd["bars"][m - 1] if m > 0 else sysd["left"]
+                    right = sysd["bars"][m] if m < len(sysd["bars"]) else sysd["bars"][-1]
+                    pts = [h["x"] for h in ns]
+                    gaps = []
+                    gaps.append((pts[0] - left, "start"))
+                    for k in range(len(pts) - 1):
+                        gaps.append((pts[k + 1] - pts[k], k))
+                    gaps.append((right - pts[-1], "end"))
+                    rest_pos = max(gaps, key=lambda g: g[0])[1]
+                toks = []
+                i = 0
+                if rest_pos == "start":
+                    for r in rests:
+                        toks.append(("r", {2: "2", 1: "4", 0.5: "8"}[r], "", None))
+                while i < len(ns):
+                    h = ns[i]
+                    p = ly_pitch(h["pitch"])
+                    acc = h["accident"]
+                    if acc == "flat":
                         letter = p[0]
-                        rest = p[1:] if len(p) > 1 else ''
-                        p = letter + 'es' + rest
-                    elif acc=='sharp':
+                        rest = p[1:] if len(p) > 1 else ""
+                        p = letter + "es" + rest
+                    elif acc == "sharp":
                         letter = p[0]
-                        rest = p[1:] if len(p) > 1 else ''
-                        p = letter + 'is' + rest
-                    elif acc=='natural':
-                        # No '!' for natural as per requirement
+                        rest = p[1:] if len(p) > 1 else ""
+                        p = letter + "is" + rest
+                    elif acc == "natural":
                         pass
-                    d=ly_dur(h['code'],h['beamed'],h['dot'])
-                    # beam group
-                    if h['beamed']:
-                        j=i
-                        while j+1<len(ns) and ns[j+1]['beamed']: j+=1
-                        if j==i:
-                            toks.append((p,d,'',h['x'])); i+=1; continue
-                        toks.append((p,d,'[',h['x']))
-                        for k in range(i+1,j+1):
-                            h2=ns[k]
-                            p2=ly_pitch(h2['pitch'])
-                            if h2['accident']=='flat':
+                    d = ly_dur(h["code"], h["beamed"], h["dot"])
+                    if h["beamed"]:
+                        j = i
+                        while j + 1 < len(ns) and ns[j + 1]["beamed"]:
+                            j += 1
+                        if j == i:
+                            toks.append((p, d, "", h["x"]))
+                            i += 1
+                            continue
+                        toks.append((p, d, "[", h["x"]))
+                        for k in range(i + 1, j + 1):
+                            h2 = ns[k]
+                            p2 = ly_pitch(h2["pitch"])
+                            if h2["accident"] == "flat":
                                 letter = p2[0]
-                                rest = p2[1:] if len(p2) > 1 else ''
-                                p2 = letter + 'es' + rest
-                            elif h2['accident']=='sharp':
+                                rest = p2[1:] if len(p2) > 1 else ""
+                                p2 = letter + "es" + rest
+                            elif h2["accident"] == "sharp":
                                 letter = p2[0]
-                                rest = p2[1:] if len(p2) > 1 else ''
-                                p2 = letter + 'is' + rest
-                            elif h2['accident']=='natural':
+                                rest = p2[1:] if len(p2) > 1 else ""
+                                p2 = letter + "is" + rest
+                            elif h2["accident"] == "natural":
                                 pass
-                            last=']' if k==j else ''
-                            toks.append((p2,ly_dur(h2['code'],True,h2['dot']),last,h2['x']))
-                        i=j+1
+                            last = "]" if k == j else ""
+                            toks.append((p2, ly_dur(h2["code"], True, h2["dot"]), last, h2["x"]))
+                        i = j + 1
                     else:
-                        toks.append((p,d,'',h['x'])); i+=1
-                    if rest_pos==i-1 and rest_pos!='start' and rest_pos!='end':
-                        for r in rests: toks.append(('r',{2:'2',1:'4',0.5:'8'}[r],'',None))
-                if rest_pos=='end' or (isinstance(rest_pos,int) and rest_pos==len(ns)-1):
-                    for r in rests: toks.append(('r',{2:'2',1:'4',0.5:'8'}[r],'',None))
+                        toks.append((p, d, "", h["x"]))
+                        i += 1
+                    if rest_pos == i - 1 and rest_pos != "start" and rest_pos != "end":
+                        for r in rests:
+                            toks.append(("r", {2: "2", 1: "4", 0.5: "8"}[r], "", None))
+                if rest_pos == "end" or (isinstance(rest_pos, int) and rest_pos == len(ns) - 1):
+                    for r in rests:
+                        toks.append(("r", {2: "2", 1: "4", 0.5: "8"}[r], "", None))
                 measures.append(toks)
-            out.append((si,voice,measures))
+            out.append((si, voice, measures))
     return out
 
-data=meld(all_systems)
-# group per voice
-voices={0:[],1:[],2:[],3:[]}
-for si,voice,measures in data:
-    voices[voice].extend(measures)
+
+def transcribe_pages(pages, font_ttf, cfg=None):
+    """Construit le modèle complet (systèmes, mesures, voix) en mémoire."""
+    cfg = cfg or config_from_env()
+    bbox = font_bbox(font_ttf)
+    systems = collect_systems(pages, cfg, bbox)
+    data = meld(systems, cfg)
+    voices = {0: [], 1: [], 2: [], 3: []}
+    for si, voice, measures in data:
+        voices[voice].extend(measures)
+    return {
+        "data": data,
+        "voices": voices,
+        "systems": systems,
+        "config": cfg,
+    }
+
+
+_MODEL_CACHE = None
+
+
+def model_from_env():
+    """Modèle mémoïsé pour les exécutions autonomes (variables d'environnement)."""
+    global _MODEL_CACHE
+    if _MODEL_CACHE is None:
+        work = Path(os.environ.get("OUT_DIR", "/tmp/pdftoly"))
+        pdf_json = Path(os.environ.get("PDF_JSON", work / "parsed.json"))
+        font_ttf = Path(os.environ.get("FONT_TTF", work / "fonts" / "R7_Maestro.ttf"))
+        _MODEL_CACHE = transcribe_pages(load_pages(pdf_json), font_ttf, config_from_env())
+    return _MODEL_CACHE
+
 
 def fmt_measures(measures):
-    lines=[]
+    lines = []
     for toks in measures:
-        parts=[]
-        for p,d,br,x in toks:
-            if p=='r': parts.append('r'+d+br)
-            elif p=='R': parts.append('R'+d+br)
-            else: parts.append(p+d+br)
-        lines.append('  '+' '.join(parts))
-    return '\n'.join(lines)
+        parts = []
+        for p, d, br, x in toks:
+            if p == "r":
+                parts.append("r" + d + br)
+            elif p == "R":
+                parts.append("R" + d + br)
+            else:
+                parts.append(p + d + br)
+        lines.append("  " + " ".join(parts))
+    return "\n".join(lines)
 
-(WORK/'voices.txt').write_text('\n\n'.join(f'% VOICE {v}\n'+fmt_measures(voices[v]) for v in range(4))+'\n')
-(WORK/'transcription.json').write_text(json.dumps({'data':data,'voices':voices}, ensure_ascii=False))
-for v in range(4):
-    print(f'% VOICE {v}')
-    print(fmt_measures(voices[v]))
-    print()
-print(f'écrit {WORK}/voices.txt et {WORK}/transcription.json')
+
+def write_outputs(model, work, quiet=False):
+    """Écrit voices.txt et transcription.json (clés et format inchangés)."""
+    work = Path(work)
+    work.mkdir(parents=True, exist_ok=True)
+    voices = model["voices"]
+    text = "\n\n".join(
+        f"% VOICE {v}\n" + fmt_measures(voices[v]) for v in range(4)
+    ) + "\n"
+    (work / "voices.txt").write_text(text)
+    jsonio.dump(
+        {"data": model["data"], "voices": {str(k): v for k, v in voices.items()}},
+        work / "transcription.json",
+    )
+    if not quiet:
+        for v in range(4):
+            print(f"% VOICE {v}")
+            print(fmt_measures(voices[v]))
+            print()
+        print(f"écrit {work}/voices.txt et {work}/transcription.json")
+
+
+def main():
+    work = Path(os.environ.get("OUT_DIR", "/tmp/pdftoly"))
+    work.mkdir(parents=True, exist_ok=True)
+    model = model_from_env()
+    write_outputs(model, work)
+
+
+if __name__ == "__main__":
+    main()

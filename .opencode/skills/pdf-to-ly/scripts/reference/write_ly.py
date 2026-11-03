@@ -1,94 +1,122 @@
-import json, importlib.util, io, contextlib, re, os
+#!/usr/bin/env python3
+"""Génération du `.ly` complet (mode from scratch, hors squelette `new.py`).
+
+Importable : l'import n'exécute rien. Utiliser `render_ly()` avec un modèle de
+`transcribe` et les paroles de `lyrics_json`, ou la CLI.
+
+Variables d'environnement (CLI) :
+  OUT_DIR, PDF_JSON, FONT_TTF   (via transcribe.model_from_env)
+  LY_OUT        fichier .ly de sortie (défaut OUT_DIR/score.ly)
+  TITLE, SUBTITLE, ARRANGER, COMPOSER, TOC_TITLE, TOC_COMPOSER
+  KEY, TIME, TEMPO
+  SYSTEMS_PER_PAGE  systèmes par page du PDF source (défaut 3)
+"""
+import os
 from pathlib import Path
-WORK=Path(os.environ.get('OUT_DIR','/tmp/pdftoly'))
-LY_OUT=Path(os.environ.get('LY_OUT', WORK/'score.ly'))
-TITLE=os.environ.get('TITLE','TITRE')
-SUBTITLE=os.environ.get('SUBTITLE','')
-ARRANGER=os.environ.get('ARRANGER','')
-COMPOSER=os.environ.get('COMPOSER', r'\palestrina')
-TOC_TITLE=os.environ.get('TOC_TITLE', TITLE)
-TOC_COMPOSER=os.environ.get('TOC_COMPOSER', '')
-SUBTITLE_LINE=(f'    subtitle = "{SUBTITLE}"\n' if SUBTITLE else '')
-ARRANGER_LINE=(f'    arranger = "{ARRANGER}"\n' if ARRANGER else '')
-TEMPO=os.environ.get('TEMPO', '"Adagio" 4=70')
-KEY=os.environ.get('KEY', r'f \major')
-TIME=os.environ.get('TIME', '4/4')
-spec=importlib.util.spec_from_file_location('tr', Path(__file__).with_name('transcribe.py'))
-tr=importlib.util.module_from_spec(spec)
-with contextlib.redirect_stdout(io.StringIO()): spec.loader.exec_module(tr)
-lyr=json.load(open(WORK/'lyrics.json'))
+
+import jsonio
+import transcribe as tr
+
+DEFAULT_SYSTEMS_PER_PAGE = 3
+
 
 def align_system(notes, words):
     # source-driven hyphen flags
-    syls=[]; hyph=[]; last=None
-    for x,t in words:
-        if t in ('-','--'):
-            if last is not None: hyph[last]=True
+    syls = []
+    hyph = []
+    last = None
+    for x, t in words:
+        if t in ("-", "--"):
+            if last is not None:
+                hyph[last] = True
         else:
-            syls.append((x,t)); hyph.append(False); last=len(syls)-1
-    assign={}; prev=-1
-    for si,(sx,st) in enumerate(syls):
-        best=None
-        for i in range(prev+1,len(notes)):
-            if i in assign: continue
-            d=abs(notes[i]-sx)
-            if best is None or d<best[0]: best=(d,i)
-        i=best[1] if best else len(notes)-1
-        assign[i]=(st,si); prev=i
-    toks=[]
-    assigned_order=sorted(assign)
+            syls.append((x, t))
+            hyph.append(False)
+            last = len(syls) - 1
+    assign = {}
+    prev = -1
+    for si, (sx, st) in enumerate(syls):
+        best = None
+        for i in range(prev + 1, len(notes)):
+            if i in assign:
+                continue
+            d = abs(notes[i] - sx)
+            if best is None or d < best[0]:
+                best = (d, i)
+        i = best[1] if best else len(notes) - 1
+        assign[i] = (st, si)
+        prev = i
+    toks = []
+    assigned_order = sorted(assign)
     for i in range(len(notes)):
         if i in assign:
-            st,si=assign[i]
+            st, si = assign[i]
             toks.append(st)
-            if hyph[si] and not st.endswith((',','.',';',':')):
+            if hyph[si] and not st.endswith((",", ".", ";", ":")):
                 # only put -- if next assigned note is immediately next (no melisma)
-                j=assigned_order.index(i)
-                if j+1<len(assigned_order) and assigned_order[j+1]==i+1:
-                    toks.append('--')
-                elif j+1==len(assigned_order):
+                j = assigned_order.index(i)
+                if j + 1 < len(assigned_order) and assigned_order[j + 1] == i + 1:
+                    toks.append("--")
+                elif j + 1 == len(assigned_order):
                     # last syllable of system; add -- for cross-system continuation
-                    toks.append('--')
+                    toks.append("--")
         else:
-            toks.append('__')
+            toks.append("__")
     return toks
 
-voice_lyrics={0:[],1:[],2:[],3:[]}
-for si,voice,measures in tr.data:
-    page=1 if si<3 else 2
-    local=si if si<3 else si-3
-    notes=[]
-    for meas in measures:
-        for tok in meas:
-            p,d,br,x=tok
-            if p not in ('r','R') and x is not None:
-                notes.append(x)
-    words=lyr.get(f'{page},{local},{voice}',[])
-    voice_lyrics[voice].extend(align_system(notes,words))
 
-# correct tenor 'quod ... est' -> 'quod ... et' (source extraction typo)
-for v in range(4):
-    for i,t in enumerate(voice_lyrics[v]):
-        if t=='est':
-            # previous syllable ignoring '--'
-            j=i-1
-            while j>=0 and voice_lyrics[v][j]=='--': j-=1
-            if j>=0 and voice_lyrics[v][j]=='quod':
-                voice_lyrics[v][i]='et'
+def build_voice_lyrics(model, lyrics, systems_per_page=DEFAULT_SYSTEMS_PER_PAGE):
+    spp = max(1, int(systems_per_page))
+    systems = model.get("systems") or []
+    voice_lyrics = {0: [], 1: [], 2: [], 3: []}
+    for si, voice, measures in model["data"]:
+        if 0 <= si < len(systems):
+            page = systems[si]["page"]
+            local = systems[si]["sysno"]
+        else:  # repli pour un modèle sans métadonnées de systèmes
+            page = 1 + si // spp
+            local = si % spp
+        notes = []
+        for meas in measures:
+            for tok in meas:
+                p, d, br, x = tok
+                if p not in ("r", "R") and x is not None:
+                    notes.append(x)
+        words = lyrics.get(f"{page},{local},{voice}", [])
+        voice_lyrics[voice].extend(align_system(notes, words))
+    return voice_lyrics
 
-def fmt_measures(measures):
-    lines=[]
-    for toks in measures:
-        parts=[p+d+br for p,d,br,x in toks]
-        lines.append('  '+' '.join(parts))
-    return '\n'.join(lines)
 
-body={v:fmt_measures(tr.voices[v]) for v in range(4)}
-lyrtext={v:' '.join(voice_lyrics[v]) for v in range(4)}
-for v in range(4):
-    print(f'--- v{v}', lyrtext[v])
+def fix_source_typos(voice_lyrics):
+    """Corrige la coquille d'extraction `quod ... est` -> `quod ... et`."""
+    for v in range(4):
+        for i, t in enumerate(voice_lyrics[v]):
+            if t == "est":
+                j = i - 1
+                while j >= 0 and voice_lyrics[v][j] == "--":
+                    j -= 1
+                if j >= 0 and voice_lyrics[v][j] == "quod":
+                    voice_lyrics[v][i] = "et"
 
-ly = r'''\version "2.26.0"
+
+def render_ly(model, lyrics, *, title, subtitle="", arranger="",
+              composer=r"\palestrina", toc_title=None, toc_composer="",
+              tempo='"Adagio" 4=70', key=r"f \major", time="4/4",
+              systems_per_page=DEFAULT_SYSTEMS_PER_PAGE, quiet=False):
+    """Retourne le contenu LilyPond complet sous forme de chaîne."""
+    toc_title = title if toc_title is None else toc_title
+    subtitle_line = f'    subtitle = "{subtitle}"\n' if subtitle else ""
+    arranger_line = f'    arranger = "{arranger}"\n' if arranger else ""
+    voice_lyrics = build_voice_lyrics(model, lyrics, systems_per_page)
+    fix_source_typos(voice_lyrics)
+    voices = model["voices"]
+    body = {v: tr.fmt_measures(voices[v]) for v in range(4)}
+    lyrtext = {v: " ".join(voice_lyrics[v]) for v in range(4)}
+    if not quiet:
+        for v in range(4):
+            print(f"--- v{v}", lyrtext[v])
+
+    ly = r'''\version "2.26.0"
 \include "settings.ily"
 \include "composers.ily"
 
@@ -186,12 +214,60 @@ ChoeurPart = \new ChoirStaff \with {
   \midi {}
 }
 '''
-for v in range(4):
-    ly=ly.replace(f'%BODY{v}%',body[v]).replace(f'%LYR{v}%',lyrtext[v])
-ly=(ly.replace('%TITLE%',TITLE).replace('%SUBTITLE%',SUBTITLE).replace('%ARRANGER%',ARRANGER)
-      .replace('%COMPOSER%',COMPOSER).replace('%TOC_TITLE%',TOC_TITLE).replace('%TOC_COMPOSER%',TOC_COMPOSER)
-      .replace('%TEMPO%',TEMPO).replace('%KEY%',KEY).replace('%TIME%',TIME)
-      .replace('%SUBTITLE_LINE%',SUBTITLE_LINE).replace('%ARRANGER_LINE%',ARRANGER_LINE))
-LY_OUT.parent.mkdir(parents=True, exist_ok=True)
-LY_OUT.write_text(ly)
-print('written',LY_OUT,len(ly))
+    for v in range(4):
+        ly = ly.replace(f"%BODY{v}%", body[v]).replace(f"%LYR{v}%", lyrtext[v])
+    ly = (
+        ly.replace("%TITLE%", title)
+        .replace("%SUBTITLE%", subtitle)
+        .replace("%ARRANGER%", arranger)
+        .replace("%COMPOSER%", composer)
+        .replace("%TOC_TITLE%", toc_title)
+        .replace("%TOC_COMPOSER%", toc_composer)
+        .replace("%TEMPO%", tempo)
+        .replace("%KEY%", key)
+        .replace("%TIME%", time)
+        .replace("%SUBTITLE_LINE%", subtitle_line)
+        .replace("%ARRANGER_LINE%", arranger_line)
+    )
+    return ly
+
+
+def write_ly(ly, ly_out, quiet=False):
+    ly_out = Path(ly_out)
+    ly_out.parent.mkdir(parents=True, exist_ok=True)
+    ly_out.write_text(ly)
+    if not quiet:
+        print("written", ly_out, len(ly))
+    return ly_out
+
+
+def run(model, lyrics, ly_out, quiet=False, **meta):
+    return write_ly(
+        render_ly(model, lyrics, quiet=quiet, **meta), ly_out, quiet=quiet
+    )
+
+
+def main():
+    work = Path(os.environ.get("OUT_DIR", "/tmp/pdftoly"))
+    ly_out = Path(os.environ.get("LY_OUT", work / "score.ly"))
+    lyrics = jsonio.load(work / "lyrics.json")
+    title = os.environ.get("TITLE", "TITRE")
+    run(
+        tr.model_from_env(), lyrics, ly_out,
+        title=title,
+        subtitle=os.environ.get("SUBTITLE", ""),
+        arranger=os.environ.get("ARRANGER", ""),
+        composer=os.environ.get("COMPOSER", r"\palestrina"),
+        toc_title=os.environ.get("TOC_TITLE", title),
+        toc_composer=os.environ.get("TOC_COMPOSER", ""),
+        tempo=os.environ.get("TEMPO", '"Adagio" 4=70'),
+        key=os.environ.get("KEY", r"f \major"),
+        time=os.environ.get("TIME", "4/4"),
+        systems_per_page=int(os.environ.get(
+            "SYSTEMS_PER_PAGE", DEFAULT_SYSTEMS_PER_PAGE
+        )),
+    )
+
+
+if __name__ == "__main__":
+    main()

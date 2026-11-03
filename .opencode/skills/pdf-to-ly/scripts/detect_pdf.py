@@ -2,12 +2,15 @@
 """Diagnostic d'un PDF de partition : vectoriel ou scanné.
 
 Usage:
-    python3 detect_pdf.py chemin/vers/partition.pdf [--json]
+    python3 detect_pdf.py chemin/vers/partition.pdf [--json] [--bbox fichier]
+                                [--fast]
 
-Ne modifie rien. Affiche les métadonnées, les polices, les images et une
-recommandation de pipeline.
+`--fast` saute `pdfimages -list` quand le PDF est clairement vectoriel (polices
+musicales ou texte abondant). Les commandes externes sont lancées en parallèle.
+Ne modifie rien d'autre que le fichier `--bbox` demandé.
 """
 import argparse
+import concurrent.futures
 import json
 import re
 import shutil
@@ -47,35 +50,49 @@ def parse_fonts(text):
     return fonts
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("pdf")
-    ap.add_argument("--json", action="store_true", help="sortie JSON uniquement")
-    ap.add_argument("--bbox", default="", help="écrire pdftotext -bbox dans ce fichier")
-    args = ap.parse_args()
-
-    pdf = Path(args.pdf)
+def detect(pdf, bbox=None, fast=False):
+    """Diagnostique `pdf` et retourne un dictionnaire (sans rien imprimer)."""
+    pdf = Path(pdf)
     if not pdf.exists():
-        sys.exit(f"PDF introuvable : {pdf}")
+        raise FileNotFoundError(f"PDF introuvable : {pdf}")
+    if bbox:
+        Path(bbox).parent.mkdir(parents=True, exist_ok=True)
 
-    info = parse_info(run(["pdfinfo", str(pdf)]))
-    fonts = parse_fonts(run(["pdffonts", str(pdf)]))
-    images_txt = run(["pdfimages", "-list", str(pdf)])
-    text = run(["pdftotext", "-layout", str(pdf), "-"])
-
-    if args.bbox:
-        run(["pdftotext", "-bbox", str(pdf), args.bbox])
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:
+        f_info = ex.submit(run, ["pdfinfo", str(pdf)])
+        f_fonts = ex.submit(run, ["pdffonts", str(pdf)])
+        f_text = ex.submit(run, ["pdftotext", "-layout", str(pdf), "-"])
+        f_bbox = ex.submit(run, ["pdftotext", "-bbox", str(pdf), str(bbox)]) if bbox else None
+        info = parse_info(f_info.result())
+        fonts = parse_fonts(f_fonts.result())
+        text = f_text.result()
+        if f_bbox:
+            f_bbox.result()
 
     pages = int(info.get("Pages", "0") or 0)
-    image_rows = max(0, len([l for l in images_txt.splitlines() if l.strip()]) - 2)
     words = len(re.findall(r"[A-Za-zÀ-ÿ]{2,}", text))
     music_fonts = [f for f in fonts if any(m in f["name"].lower() for m in MUSIC_FONTS)]
 
-    # Heuristique : un PDF scanné a des images plein-page et très peu de texte.
-    scanned = pages > 0 and image_rows >= pages and words < 20 and not music_fonts
+    # `pdfimages -list` est coûteux : en mode rapide on ne le lance que si le
+    # diagnostic est ambigu (ni police musicale, ni texte).
+    ambiguous = not music_fonts and words < 20
+    if fast and not ambiguous:
+        images_txt = ""
+        images_skipped = True
+    else:
+        images_txt = run(["pdfimages", "-list", str(pdf)])
+        images_skipped = False
+
+    image_rows = max(0, len([l for l in images_txt.splitlines() if l.strip()]) - 2)
+    scanned = (
+        pages > 0
+        and (image_rows >= pages if not images_skipped else True)
+        and words < 20
+        and not music_fonts
+    )
     kind = "scanned" if scanned else "vector"
 
-    result = {
+    return {
         "pdf": str(pdf.resolve()),
         "pages": pages,
         "page_size": info.get("Page size", ""),
@@ -84,6 +101,7 @@ def main():
         "music_fonts": music_fonts,
         "fonts": fonts,
         "image_rows": image_rows,
+        "images_skipped": images_skipped,
         "text_words": words,
         "kind": kind,
         "tools": {
@@ -96,19 +114,34 @@ def main():
         },
     }
 
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("pdf")
+    ap.add_argument("--json", action="store_true", help="sortie JSON uniquement")
+    ap.add_argument("--bbox", default="", help="écrire pdftotext -bbox dans ce fichier")
+    ap.add_argument("--fast", "--no-images", dest="fast", action="store_true",
+                    help="sauter pdfimages -list si le PDF est clairement vectoriel")
+    args = ap.parse_args()
+
+    result = detect(args.pdf, args.bbox or None, args.fast)
+
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=1))
         return
 
     print(f"PDF          : {result['pdf']}")
-    print(f"Pages        : {pages}  ({result['page_size']})")
+    print(f"Pages        : {result['pages']}  ({result['page_size']})")
     print(f"Titre        : {result['title'] or '(inconnu)'}")
-    print(f"Polices      : {', '.join(f['name'] for f in fonts) or '(aucune)'}")
-    print(f"Polices musi.: {', '.join(f['name'] for f in music_fonts) or '(aucune)'}")
-    print(f"Images       : {image_rows} ligne(s) pdfimages")
-    print(f"Mots texte   : {words}")
-    print(f"Type détecté : {kind.upper()}")
-    if scanned:
+    print(f"Polices      : {', '.join(f['name'] for f in result['fonts']) or '(aucune)'}")
+    print(f"Polices musi.: {', '.join(f['name'] for f in result['music_fonts']) or '(aucune)'}")
+    if result["images_skipped"]:
+        print("Images       : (non analysées, mode rapide)")
+    else:
+        print(f"Images       : {result['image_rows']} ligne(s) pdfimages")
+    print(f"Mots texte   : {result['text_words']}")
+    print(f"Type détecté : {result['kind'].upper()}")
+    if result["kind"] == "scanned":
         print("  -> pipeline OCR (Audiveris requis) :")
         print("     audiveris -batch -export -output /tmp/pdftoly <pdf>")
         print("     .prog/lilypond-2.26.0/bin/musicxml2ly -o <Nom>.ly <fichier>.mxl")
@@ -116,7 +149,7 @@ def main():
             print("  !! Audiveris absent : installer Audiveris/Java, ne pas deviner les notes.")
     else:
         print("  -> pipeline vectoriel :")
-        print("     utiliser scripts/reference/ (adapter constantes/police/clés)")
+        print("     scripts/pipeline.sh <pdf> --out-dir <dossier> [--title ...]")
     if not result["tools"]["musicxml2ly"]:
         print("  note : musicxml2ly absent du PATH ; utiliser .prog/lilypond-2.26.0/bin/musicxml2ly")
 

@@ -3,24 +3,27 @@
 
 Usage:
     python3 parse_pdf.py <partition.pdf> --out /tmp/pdftoly/parsed.json \
-        [--font-dir /tmp/pdftoly/fonts]
+        [--font-dir /tmp/pdftoly/fonts] [--jobs N] [--force]
 
 Sortie:
-    - parsed.json : liste de pages {page, glyphs, segments}
+    - parsed.json : liste de pages {page, glyphs, segments} (JSON compact)
     - fonts.json  : mapping ressource PDF -> fichier de police extrait
-    - font-dir/*  : polices embarquées extraites (si --font-dir)
+    - font-dir/*  : polices embarquées extraites
 
-Les glyphes contiennent le code brut, la ressource de police, la taille, et les
-matrices PDF. Les codes de glyphes dépendent de la police : pour Maestro, voir
-la table de la skill pdf-to-ly.
+Le parsing des pages est parallélisé (multiprocessing) et mis en cache dans
+`<out>.meta.json` : un second appel sur le même PDF ne reparse rien.
 
 Dépendance : pypdf (déjà utilisé par le projet pour l'extraction PDF).
 """
 import argparse
-import json
+import concurrent.futures
+import os
 import re
-import zlib
 from pathlib import Path
+
+import jsonio
+
+CACHE_VERSION = 3
 
 # Largeurs Maestro (codes 1..23) utilisées par le PDF de référence.
 MAESTRO_WIDTHS = {
@@ -322,43 +325,169 @@ def read_font_widths(page):
     return widths_by_font, font_names, font_files
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("pdf")
-    ap.add_argument("--out", default="/tmp/pdftoly/parsed.json")
-    ap.add_argument("--font-dir", default="")
-    args = ap.parse_args()
+def font_filename(key, base, ext):
+    safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", key + "_" + base)
+    return safe + ext
 
+
+def _parse_chunk(args):
+    """Parse un bloc de pages dans un process : le PDF est ouvert par chemin."""
+    pdf_path, page_numbers = args
+    from pypdf import PdfReader
+
+    reader = PdfReader(pdf_path)
+    pages = []
+    fonts = {}
+    for no in page_numbers:
+        page = reader.pages[no - 1]
+        content = page.get_contents()
+        data = content.get_data() if content is not None else b""
+        widths_by_font, font_names, font_files = read_font_widths(page)
+        glyphs, segments = parse_content(data, no, widths_by_font, font_names)
+        pages.append({"page": no, "glyphs": glyphs, "segments": segments})
+        for key, (base, ext, fdata) in font_files.items():
+            fonts[key] = (base, ext, fdata)
+    return pages, fonts
+
+
+def _chunks(seq, n):
+    n = max(1, n)
+    size = max(1, len(seq) // n)
+    for i in range(0, len(seq), size):
+        yield seq[i:i + size]
+
+
+def _fingerprint(pdf):
+    st = Path(pdf).stat()
+    return st.st_size, st.st_mtime_ns
+
+
+def _default_jobs():
+    try:
+        return max(1, int(os.environ.get("PDFTOLY_JOBS", "0")) or os.cpu_count() or 1)
+    except ValueError:
+        return os.cpu_count() or 1
+
+
+def _cache_paths(out):
+    out = Path(out)
+    return out, out.with_name(out.name + ".meta.json"), out.parent / "fonts.json"
+
+
+def _cache_meta(pdf, out, fonts_json, meta_path, font_dir):
+    if not (out.exists() and fonts_json.exists() and meta_path.exists()):
+        return None
+    try:
+        meta = jsonio.load(meta_path)
+    except Exception:
+        return None
+    size, mtime_ns = _fingerprint(pdf)
+    if (
+        meta.get("version") != CACHE_VERSION
+        or meta.get("pdf") != str(Path(pdf).resolve())
+        or meta.get("size") != size
+        or meta.get("mtime_ns") != mtime_ns
+        or meta.get("font_dir") != str(Path(font_dir).resolve())
+    ):
+        return None
+    if not all(Path(f).exists() for f in meta.get("font_files", [])):
+        return None
+    return meta
+
+
+def parse(pdf, out, font_dir=None, jobs=None, force=False, use_cache=True,
+          quiet=False, load_cached=True):
+    """Parse `pdf` vers `out` (et les polices vers `font_dir`). Retourne les pages."""
+    def say(*args):
+        if not quiet:
+            print(*args)
     try:
         from pypdf import PdfReader
     except ImportError as exc:
         raise SystemExit("pypdf est requis : pip install pypdf") from exc
 
-    reader = PdfReader(args.pdf)
-    out = Path(args.out)
+    pdf = Path(pdf)
+    out, meta_path, fonts_json = _cache_paths(out)
+    font_dir = Path(font_dir) if font_dir else out.parent / "fonts"
     out.parent.mkdir(parents=True, exist_ok=True)
-    font_dir = Path(args.font_dir) if args.font_dir else out.parent / "fonts"
     font_dir.mkdir(parents=True, exist_ok=True)
 
-    pages = []
-    all_fonts = {}
-    for i, page in enumerate(reader.pages, 1):
-        content = page.get_contents()
-        data = content.get_data() if content is not None else b""
-        widths_by_font, font_names, font_files = read_font_widths(page)
-        for res_name, (base, ext, fdata) in font_files.items():
-            key = str(res_name).lstrip("/")
-            safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", key + "_" + base)
-            path = font_dir / (safe + ext)
-            path.write_bytes(fdata)
-            all_fonts[key] = {"base": base, "file": str(path)}
-        glyphs, segments = parse_content(data, i, widths_by_font, font_names)
-        pages.append({"page": i, "glyphs": glyphs, "segments": segments})
-        print(f"page {i}: {len(glyphs)} glyphes, {len(segments)} segments")
+    meta = _cache_meta(pdf, out, fonts_json, meta_path, font_dir) if (
+        use_cache and not force
+    ) else None
+    if meta is not None:
+        counts = meta.get("counts", [])
+        say(f"cache: {out} ({len(counts)} page(s))")
+        for page_no, n_glyphs, n_segments in counts:
+            say(f"page {page_no}: {n_glyphs} glyphes, {n_segments} segments (cache)")
+        return jsonio.load(out) if load_cached else None
 
-    out.write_text(json.dumps(pages, ensure_ascii=False))
-    (out.parent / "fonts.json").write_text(json.dumps(all_fonts, ensure_ascii=False, indent=1))
-    print(f"écrit {out} et {out.parent / 'fonts.json'}")
+    reader = PdfReader(str(pdf))
+    page_count = len(reader.pages)
+    jobs = jobs or _default_jobs()
+    jobs = max(1, min(jobs, page_count))
+    if page_count < 4:  # le lancement de process coûte plus cher que le parsing
+        jobs = 1
+
+    if jobs == 1:
+        pages, fonts = _parse_chunk((str(pdf), list(range(1, page_count + 1))))
+    else:
+        chunks = list(_chunks(list(range(1, page_count + 1)), jobs))
+        with concurrent.futures.ProcessPoolExecutor(max_workers=jobs) as ex:
+            results = list(ex.map(_parse_chunk, [(str(pdf), c) for c in chunks]))
+        pages = [pg for chunk, _ in results for pg in chunk]
+        fonts = {}
+        for _, chunk_fonts in results:
+            fonts.update(chunk_fonts)
+
+    for key, (base, ext, fdata) in fonts.items():
+        path = font_dir / font_filename(key, base, ext)
+        path.write_bytes(fdata)
+
+    jsonio.dump(
+        {k: {"base": base, "file": str(font_dir / font_filename(k, base, ext))}
+         for k, (base, ext, _) in fonts.items()},
+        fonts_json,
+    )
+    jsonio.dump(pages, out)
+    size, mtime_ns = _fingerprint(pdf)
+    jsonio.dump({
+        "version": CACHE_VERSION,
+        "pdf": str(pdf.resolve()),
+        "size": size,
+        "mtime_ns": mtime_ns,
+        "font_dir": str(font_dir.resolve()),
+        "font_files": [
+            str(font_dir / font_filename(k, base, ext))
+            for k, (base, ext, _) in fonts.items()
+        ],
+        "counts": [[pg["page"], len(pg["glyphs"]), len(pg["segments"])]
+                   for pg in pages],
+    }, meta_path)
+
+    for pg in pages:
+        say(f"page {pg['page']}: {len(pg['glyphs'])} glyphes, "
+            f"{len(pg['segments'])} segments")
+    if not any(pg["glyphs"] for pg in pages):
+        say("attention: aucun glyphe extrait (contenu en XObjects ou PDF scanné ?)")
+    say(f"écrit {out} et {fonts_json}")
+    return pages
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("pdf")
+    ap.add_argument("--out", default="/tmp/pdftoly/parsed.json")
+    ap.add_argument("--font-dir", default="")
+    ap.add_argument("--jobs", type=int, default=0, help="processus (défaut CPU, env PDFTOLY_JOBS)")
+    ap.add_argument("--force", action="store_true", help="ignorer le cache")
+    ap.add_argument("--no-cache", action="store_true", help="ne pas lire le cache")
+    args = ap.parse_args()
+    parse(
+        args.pdf, args.out, args.font_dir or None,
+        jobs=args.jobs or None, force=args.force, use_cache=not args.no_cache,
+        load_cached=False,
+    )
 
 
 if __name__ == "__main__":
