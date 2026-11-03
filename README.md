@@ -31,7 +31,7 @@ KergallScore vous propose des solutions. [Nous attendons vos commandes](mailto:s
 Plus d'informations [par ici](.doc/DEVELOPERS.md).
 
 ## Mentions légales
-Nous produisons des partitions à partir de sources variées et indépendantes. Si l'une d'elles se trouvait ne pas être libre de droit, [prévenez-nous immédiatement](mailto:stef.kergall@gmail.com) pour que nous puissions protéger le travail de nos collègues musiciens.
+Nous produisons des partitions à partir de sources variées et indépendantes. Si l'une d'elles se trouvait ne pas être libre de droit, [prévenez-nous immédiatement](mailto:stef.kergall@gmail.com?subject=Droits%20d'auteurs&body=Bonjour%20Stéphane,%0D%0AJ'ai%20trouvé%20sur%20KergallScore%20la%20partition%20...%20qui%20est%20protégée%20par%20des%20droits%20d'auteurs.%20Il%20faudrait%20vérifier%20votre%20accès.%0D%0ACordialement,%0D%0A) pour que nous puissions protéger le travail de nos collègues musiciens.
 
 
 [[english]](.doc/README_en.md)
