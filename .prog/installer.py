@@ -8,10 +8,11 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 PROG_DIR = ROOT_DIR / ".prog"
 
-APT_LIST = ["timidity", "frescobaldi", "python3-pip", "python3-tk", "snapd", "musescore"]
+APT_LIST = ["timidity", "frescobaldi", "python3-pip", "python3-venv", "python3-tk", "snapd", "musescore"]
 PIP_LIST = ["customtkinter", "gitpython"]
 SNAP_LIST = ["code --classic", "obsidian --classic"]
 LILYPOND_URL = "https://gitlab.com/lilypond/lilypond/-/releases/v2.26.0/downloads/lilypond-2.26.0-linux-x86_64.tar.gz"
+LY2VIDEO_URL = "git@github.com:StephaneKergall/ly2video.git"
 
 
 def run(*args):
@@ -52,6 +53,17 @@ lilypond_archive.unlink()
 lilypond_ly_dir = PROG_DIR / "lilypond-2.26.0" / "share" / "lilypond" / "2.26.0" / "ly"
 for util_file in (ROOT_DIR / ".utils").iterdir():
     run("cp", str(util_file), str(lilypond_ly_dir))
+
+# ly2video
+ly2video_dir = PROG_DIR / "ly2video"
+if not ly2video_dir.exists():
+    run("git", "clone", LY2VIDEO_URL, str(ly2video_dir))
+ly2video_venv = ly2video_dir / ".venv"
+if not ly2video_venv.exists():
+    run("python3", "-m", "venv", str(ly2video_venv))
+ly2video_python = ly2video_venv / "bin" / "python"
+run(str(ly2video_python), "-m", "pip", "install", "--upgrade", "pip")
+run(str(ly2video_python), "-m", "pip", "install", "--editable", str(ly2video_dir))
 
 # bashrc
 print("Configuration...")

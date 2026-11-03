@@ -64,6 +64,21 @@
                 "${workspaceFolder}/.prog/lilypond-2.26.0/share/lilypond/2.26.0/ly/"
             ],
             "group": "build"
+        },
+        {
+            "label": "ly2video",
+            "type": "process",
+            "command": "${workspaceFolder}/.prog/ly2video/.venv/bin/ly2video",
+            "args": [
+                "-i",
+                "${file}",
+                "-o",
+                "${fileDirname}/${fileBasenameNoExtension}.mp4"
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "group": "build"
         }
     ]
 }
