@@ -1,5 +1,6 @@
 \version "2.26.0"
 \include "settings.ily"
+\include "composers.ily"
 #(ly:set-option 'backend 'cairo)
 #(set-global-staff-size 15)
 
@@ -10,8 +11,8 @@ global = {
 
 soprano = \fixed c' \transpose a c' {
   \global
-  fis1^\p 2 2 g g fis1\fermata r2 fis g fis g1 fis e\fermata \break
-  a1^\sfz 2 2~2 2 b cis' d'1\fermata 1^\sp b b cis'~2 a2 1\fermata \bar "||"
+  fis1\p 2 2 g g fis1\fermata r2 fis g fis g1 fis e\fermata \break
+  a1\sfz 2 2~2 2 b cis' d'1\fermata 1\sp b b cis'~2 a2 1\fermata \bar "||"
 }
 
 alto = \fixed c' \transpose a c' {
@@ -22,8 +23,8 @@ alto = \fixed c' \transpose a c' {
 
 tenor = \fixed c \transpose a c' {
   \global
-  a1 b2 b g g a1\fermata r2 b b b g1 a a\fermata
-  1 2 fis~2 a g e fis1\fermata d'1 1 e' cis'~2 d'2 1\fermata
+  a1 b2 b g g a1 r2 b b b g1 a a1
+  1 2 fis~2 a g e fis1 d'1 1 e' cis'~2 d'2 1
 }
 
 bass = \fixed c \transpose a c' {
@@ -34,12 +35,12 @@ bass = \fixed c \transpose a c' {
 
 verse = \lyricmode {
   Et in -- car -- ná -- tus est de Spí -- ri -- tu Sánc -- to
-  ex Ma -- rí -- a Vír -- gi -- ne, et hó -- mo fac -- tus est.
+  ex Ma -- rí -- a Vír -- gi -- ne, et hó -- mo fác -- tus est.
 }
 
 \tocItem \markup "Credo III"
 \markup \column {
-  \fill-line {\bold \fontsize #5 "CREDO III" }
+  \fill-line { \null \bold {\fontsize #5 "CREDO III POLYPHONIQUE"} \berchten}
   \fill-line {
     \epsfile #X #140 #"cache/credoIII_1.png"
   }
