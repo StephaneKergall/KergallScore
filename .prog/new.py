@@ -1125,7 +1125,7 @@ class HeaderTab(wx.Panel):
 
 
 class PartsTab(wx.Panel):
-    """Onglet « Parties » : choix des voix/instruments et de leurs réglages (couplets, schéma...)."""
+    """Onglet « Parties » : choix des voix/instruments et de leurs réglages."""
 
     def __init__(self, master):
         super().__init__(master)
@@ -1141,82 +1141,126 @@ class PartsTab(wx.Panel):
         self.SetSizer(main_sizer)
 
         self.parts: dict[str, dict] = {
-            "Flûte":   {},
-            "Solo":    {},
-            "Choeur":  {},
-            "Clavier": {},
+            "Flûte": {
+                "paroles": {
+                    "widget": "checkbox", "label": "Paroles", "default": False,
+                },
+            },
+            "Solo": {
+                "couplets": {
+                    "widget": "spin",
+                    "label": "Couplets :", "min": 1,
+                    "max": len(NUMBERS), "default": 1,
+                },
+            },
+            "Choeur": {
+                "schema": {
+                    "widget": "combo",
+                    "val": ("SA-TB", "S-A-T-B", "SA-H", "S-S-A", "T-T-B", "T-T-B-B"),
+                    "default": "SA-TB",
+                    "event": "schema_voices_changed",
+                },
+                "couplets": {
+                    "widget": "spin",
+                    "label": "Couplets :", "min": 1,
+                    "max": len(NUMBERS), "default": 1,
+                },
+                "meme_paroles": {
+                    "widget": "checkbox",
+                    "label": "Même paroles pour toutes les voix", "default": True,
+                },
+            },
+            "Clavier": {
+                "type": {
+                    "widget": "choice",
+                    "val": ("Piano", "Orgue"), "default": "Piano",
+                    "event": "clavier_changed",
+                },
+                "staffs": {
+                    "widget": "spin", "repeat": True,
+                    "labels": PIANO_STAFFS_FR, "min": 0,
+                    "max": len(NUMBERS), "default": 1,
+                    "hide_after": 2,
+                },
+            },
         }
 
-        for part in self.parts:
+        for part, config in self.parts.items():
             checkbox = wx.CheckBox(left_frame, label=part)
             checkbox.Bind(wx.EVT_CHECKBOX, self.update_parts_ui)
             left_sizer.Add(checkbox, 0, wx.ALL, 5)
-            self.parts[part]["btn"] = checkbox
+            config["btn"] = checkbox
 
             voice_frame = wx.Panel(right_frame)
             voice_sizer = wx.BoxSizer(wx.VERTICAL)
             voice_frame.SetSizer(voice_sizer)
-            self.parts[part]["frame"] = voice_frame
+            config["frame"] = voice_frame
             voice_sizer.Add(wx.StaticText(voice_frame, label=part), 0, wx.ALL, 8)
+            for field in config.values():
+                if not isinstance(field, dict) or "widget" not in field:
+                    continue
+                if field.get("repeat"):
+                    field["var"] = []
+                    if part == "Clavier":
+                        self._staff_rows = []
+                    for index, label in enumerate(field["labels"]):
+                        row = wx.Panel(voice_frame)
+                        row_sizer = wx.BoxSizer(wx.HORIZONTAL)
+                        row.SetSizer(row_sizer)
+                        row_sizer.Add(
+                            wx.StaticText(row, label=label),
+                            0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
+                        )
+                        widget = wx.SpinCtrl(
+                            row, min=field["min"], max=field["max"],
+                            initial=field["default"],
+                        )
+                        row_sizer.Add(widget, 0, wx.ALIGN_CENTER_VERTICAL)
+                        voice_sizer.Add(row, 0, wx.LEFT | wx.BOTTOM, 5)
+                        field["var"].append(widget)
+                        self._staff_rows.append(row)
+                        if index >= field.get("hide_after", len(field["labels"])):
+                            row.Hide()
+                    continue
 
-            if part in ("Solo", "Choeur"):
-                couplets_frame = wx.Panel(voice_frame)
-                couplets_sizer = wx.BoxSizer(wx.HORIZONTAL)
-                couplets_frame.SetSizer(couplets_sizer)
-                couplets_sizer.Add(
-                    wx.StaticText(couplets_frame, label="Couplets :"),
-                    0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
-                )
-                count = wx.SpinCtrl(
-                    couplets_frame, min=1, max=len(NUMBERS), initial=1,
-                )
-                self.parts[part]["couplets"] = count
-                couplets_sizer.Add(count, 0, wx.ALIGN_CENTER_VERTICAL)
-                voice_sizer.Add(couplets_frame, 0, wx.LEFT | wx.BOTTOM, 15)
-
-            if part == "Choeur":
-                schema = wx.ComboBox(
-                    voice_frame, value="SA-TB",
-                    choices=("SA-TB", "S-A-T-B", "SA-H", "S-S-A", "T-T-B", "T-T-B-B"),
-                    style=wx.CB_DROPDOWN,
-                )
-                self.parts[part]["schema"] = schema
-                schema.Bind(wx.EVT_COMBOBOX, self.schema_voices_changed)
-                schema.Bind(wx.EVT_TEXT, self.schema_voices_changed)
-                voice_sizer.Add(schema, 0, wx.LEFT | wx.BOTTOM, 15)
-                shared = wx.CheckBox(voice_frame, label="Même paroles pour toutes les voix")
-                shared.SetValue(True)
-                self.parts[part]["meme_paroles"] = shared
-                voice_sizer.Add(shared, 0, wx.LEFT | wx.BOTTOM, 15)
-
-            elif part == "Clavier":
-                instrument_type = wx.Choice(voice_frame, choices=("Piano", "Orgue"))
-                instrument_type.SetSelection(0)
-                instrument_type.Bind(wx.EVT_CHOICE, self.clavier_changed)
-                self.parts[part]["type"] = instrument_type
-                voice_sizer.Add(instrument_type, 0, wx.LEFT | wx.BOTTOM, 15)
-                self._staff_rows = []
-                self.parts[part]["staffs"] = []
-                for staff_index, staff_label in enumerate(PIANO_STAFFS_FR):
+                widget_type = field["widget"]
+                if widget_type == "spin":
                     row = wx.Panel(voice_frame)
                     row_sizer = wx.BoxSizer(wx.HORIZONTAL)
                     row.SetSizer(row_sizer)
-                    staff_count = wx.SpinCtrl(
-                        row, min=0, max=len(NUMBERS), initial=1,
+                    row_sizer.Add(
+                        wx.StaticText(row, label=field["label"]),
+                        0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
                     )
-                    self.parts[part]["staffs"].append(staff_count)
-                    row_sizer.Add(staff_count, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5)
-                    row_sizer.Add(wx.StaticText(row, label=staff_label), 0, wx.ALIGN_CENTER_VERTICAL)
-                    self._staff_rows.append(row)
-                    voice_sizer.Add(row, 0, wx.LEFT | wx.BOTTOM, 5)
-                    if staff_index >= 2:
-                        row.Hide()
-
-            elif part == "Flûte":
-                lyrics = wx.CheckBox(voice_frame, label="Paroles")
-                self.parts[part]["paroles"] = lyrics
-                voice_sizer.Add(lyrics, 0, wx.LEFT | wx.BOTTOM, 15)
-
+                    widget = wx.SpinCtrl(
+                        row, min=field["min"], max=field["max"],
+                        initial=field["default"],
+                    )
+                    row_sizer.Add(widget, 0, wx.ALIGN_CENTER_VERTICAL)
+                    voice_sizer.Add(row, 0, wx.LEFT | wx.BOTTOM, 15)
+                elif widget_type == "checkbox":
+                    widget = wx.CheckBox(voice_frame, label=field["label"])
+                    widget.SetValue(field["default"])
+                    voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
+                elif widget_type == "choice":
+                    widget = wx.Choice(voice_frame, choices=field["val"])
+                    widget.SetSelection(field["val"].index(field["default"]))
+                    voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
+                elif widget_type == "combo":
+                    widget = wx.ComboBox(
+                        voice_frame, value=field["default"], choices=field["val"],
+                        style=wx.CB_DROPDOWN,
+                    )
+                    voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
+                else:
+                    raise ValueError(f"Type de widget inconnu : {widget_type}")
+                field["var"] = widget
+                if "event" in field:
+                    callback = getattr(self, field["event"])
+                    event_type = wx.EVT_CHOICE if widget_type == "choice" else wx.EVT_COMBOBOX
+                    widget.Bind(event_type, callback)
+                    if widget_type == "combo":
+                        widget.Bind(wx.EVT_TEXT, callback)
             voice_sizer.SetSizeHints(voice_frame)
             voice_frame.Hide()
             self.right_sizer.Add(voice_frame, 0, wx.EXPAND | wx.ALL, 4)
@@ -1234,14 +1278,15 @@ class PartsTab(wx.Panel):
     def schema_voices_changed(self, *_args):
         """Affiche le choix « même paroles » dès que le chœur comporte plusieurs portées."""
         choir = self.parts["Choeur"]
-        choir["meme_paroles"].Show("-" in choir["schema"].GetValue())
+        choir["meme_paroles"]["var"].Show("-" in choir["schema"]["var"].GetValue())
         self._resize_part_frame(choir["frame"])
 
     def clavier_changed(self, *_args):
         """Affiche la ligne « Pédalier » seulement pour l'orgue."""
-        is_organ = self.parts["Clavier"]["type"].GetStringSelection() == "Orgue"
+        clavier = self.parts["Clavier"]
+        is_organ = clavier["type"]["var"].GetStringSelection() == "Orgue"
         self._staff_rows[2].Show(is_organ)
-        self._resize_part_frame(self.parts["Clavier"]["frame"])
+        self._resize_part_frame(clavier["frame"])
 
     def update_parts_ui(self, *_args):
         """Affiche/cache le panneau de réglages de chaque partie selon sa case à cocher."""
@@ -1261,19 +1306,19 @@ class PartsTab(wx.Panel):
             if not config["btn"].GetValue():
                 continue
             if name == "Flûte":
-                active[name] = flute_pack(bool(config["paroles"].GetValue()))
+                active[name] = flute_pack(bool(config["paroles"]["var"].GetValue()))
             elif name == "Solo":
-                active[name] = solo_pack(config["couplets"].GetValue())
+                active[name] = solo_pack(config["couplets"]["var"].GetValue())
             elif name == "Choeur":
                 active[name] = choir_pack(
-                    config["schema"].GetValue().strip().upper(),
-                    config["couplets"].GetValue(),
-                    bool(config["meme_paroles"].GetValue()),
+                    config["schema"]["var"].GetValue().strip().upper(),
+                    config["couplets"]["var"].GetValue(),
+                    bool(config["meme_paroles"]["var"].GetValue()),
                 )
             elif name == "Clavier":
                 active[name] = clavier_pack(
-                    [control.GetValue() for control in config["staffs"]],
-                    config["type"].GetStringSelection() == "Orgue",
+                    [control.GetValue() for control in config["staffs"]["var"]],
+                    config["type"]["var"].GetStringSelection() == "Orgue",
                 )
         if not active:
             raise GenerationError("Sélectionnez au moins une partie dans l'onglet « Parties ».")
@@ -1301,7 +1346,7 @@ class MusicTab(wx.Panel):
             "Indication de tempo": {
                 "val": [
                     "Lento", "Adagio", "Andante", "Maestoso", "Presto", "Allegro",
-                    "Andantino", "Adagio ma non troppo",
+                    "Andantino", "Adagio ma non troppo", "Vivace",
                 ],
                 "default": "",
             },
