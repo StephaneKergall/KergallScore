@@ -13,6 +13,7 @@ PIP_LIST = ["customtkinter", "gitpython"]
 SNAP_LIST = ["code --classic", "obsidian --classic"]
 LILYPOND_URL = "https://gitlab.com/lilypond/lilypond/-/releases/v2.26.0/downloads/lilypond-2.26.0-linux-x86_64.tar.gz"
 LY2VIDEO_URL = "git@github.com:StephaneKergall/ly2video.git"
+PDF2LY_URL = "git@github.com:StephaneKergall/pdf2ly.git"
 
 
 def run(*args):
@@ -64,6 +65,22 @@ if not ly2video_venv.exists():
 ly2video_python = ly2video_venv / "bin" / "python"
 run(str(ly2video_python), "-m", "pip", "install", "--upgrade", "pip")
 run(str(ly2video_python), "-m", "pip", "install", "--editable", str(ly2video_dir))
+
+# pdf2ly
+pdf2ly_dir = PROG_DIR / "pdf2ly"
+run("git", "clone", PDF2LY_URL, str(pdf2ly_dir))
+pdf2ly_venv = pdf2ly_dir / ".venv"
+run("python3", "-m", "venv", str(pdf2ly_venv))
+pdf2ly_python = pdf2ly_venv / "bin" / "python"
+run(str(pdf2ly_python), "-m", "pip", "install", "--upgrade", "pip")
+run(
+    str(pdf2ly_python),
+    "-m",
+    "pip",
+    "install",
+    "-r",
+    str(pdf2ly_dir / "requirements.txt"),
+)
 
 # bashrc
 print("Configuration...")
