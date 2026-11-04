@@ -431,8 +431,6 @@ def choir_pack(
     """Assemble variables + portées pour la partie « Choeur »."""
     schema = schema.strip().upper()
     validate_choir_schema(schema)
-    if not 1 <= verse_count <= len(NUMBERS):
-        raise GenerationError(f"Le nombre de couplets doit être compris entre 1 et {len(NUMBERS)}.")
     if lyrics_mode not in {
         CHOIR_LYRICS_ALL_STAFFS,
         CHOIR_LYRICS_ALL_BUT_LAST,
@@ -539,8 +537,6 @@ def solo_staff(verse_count: int) -> str:
 
 def solo_pack(verse_count: int) -> str:
     """Assemble variables + portée du solo."""
-    if not 1 <= verse_count <= len(NUMBERS):
-        raise GenerationError(f"Le nombre de couplets doit être compris entre 1 et {len(NUMBERS)}.")
     return solo_vars(verse_count) + solo_staff(verse_count)
 
 
@@ -578,8 +574,6 @@ def flute_staff(verse_count: int) -> str:
 
 def flute_pack(verse_count: int) -> str:
     """Assemble variables + portée de la flûte."""
-    if not 1 <= verse_count <= len(NUMBERS):
-        raise GenerationError(f"Le nombre de couplets doit être compris entre 1 et {len(NUMBERS)}.")
     return flute_vars(verse_count) + flute_staff(verse_count)
 
 
@@ -698,7 +692,7 @@ def build_markup_couplets_block(index_debut: int, nombre_couplets: int) -> str:
             "\n"
             "\\markup \\couplets-markup "
             + f"#{index_debut} #{nombre_couplets}"
-            + "{\n"
+            + " {\n"
             + _couplet_unitaire_fin()*nombre_couplets
             + "}\n"
         )
@@ -1195,11 +1189,19 @@ class PartsTab(wx.Panel):
                     "widget": "spin",
                     "label": "Couplets :", "default": 1,
                 },
+                "couplets_affiches": {
+                    "widget": "spin",
+                    "label": "Couplets affichés :", "default": 1,
+                },
             },
             "Solo": {
                 "couplets": {
                     "widget": "spin",
                     "label": "Couplets :", "default": 1,
+                },
+                "couplets_affiches": {
+                    "widget": "spin",
+                    "label": "Couplets affichés :", "default": 1,
                 },
             },
             "Choeur": {
@@ -1212,6 +1214,10 @@ class PartsTab(wx.Panel):
                 "couplets": {
                     "widget": "spin",
                     "label": "Couplets :", "default": 1,
+                },
+                "couplets_affiches": {
+                    "widget": "spin",
+                    "label": "Couplets affichés :", "default": 1,
                 },
                 "meme_paroles": {
                     "widget": "radio",
@@ -1397,18 +1403,21 @@ class PartsTab(wx.Panel):
         for name, config in self.parts.items():
             if config["btn"].GetValue():
                 if name == "Flûte":
-                    active[name] = flute_pack(config["couplets"]["var"].GetValue())
+                    displayed_count = config["couplets_affiches"]["var"].GetValue()
+                    active[name] = flute_pack(displayed_count)
                 elif name == "Solo":
-                    active[name] = solo_pack(config["couplets"]["var"].GetValue())
+                    displayed_count = config["couplets_affiches"]["var"].GetValue()
+                    active[name] = solo_pack(displayed_count)
                 elif name == "Choeur":
                     lyrics_modes = (
                         CHOIR_LYRICS_ALL_STAFFS,
                         CHOIR_LYRICS_ALL_BUT_LAST,
                         CHOIR_LYRICS_ALL_VOICES,
                     )
+                    displayed_count = config["couplets_affiches"]["var"].GetValue()
                     active[name] = choir_pack(
                         config["schema"]["var"].GetValue().strip().upper(),
-                        config["couplets"]["var"].GetValue(),
+                        displayed_count,
                         lyrics_modes[config["lyrics_application"]["var"].GetSelection()],
                         bool(config["meme_paroles"]["var"][0].GetValue()),
                     )
@@ -1420,6 +1429,27 @@ class PartsTab(wx.Panel):
         if not active:
             raise GenerationError("Sélectionnez au moins une partie dans l'onglet « Parties ».")
         return active
+
+    def get_couplets_block(self) -> tuple[int, int]:
+        """Retourne l'index et le nombre des couplets placés après le ``\\score``."""
+        block: tuple[int, int] | None = None
+        for name, config in self.parts.items():
+            if config["btn"].GetValue() and name in {"Flûte", "Solo", "Choeur"}:
+                verse_count = config["couplets"]["var"].GetValue()
+                displayed_count = config["couplets_affiches"]["var"].GetValue()
+                if displayed_count > verse_count:
+                    raise GenerationError(
+                        "Le nombre de couplets affichés ne peut pas dépasser le total."
+                    )
+                current_block = (displayed_count + 1, verse_count - displayed_count)
+                if current_block[1] > 0:
+                    if block is None:
+                        block = current_block
+                    elif block != current_block:
+                        raise GenerationError(
+                            "Les couplets restants doivent avoir le même index et le même nombre."
+                        )
+        return block or (0, 0)
 
 
 class MusicTab(wx.Panel):
@@ -1563,8 +1593,11 @@ class LilypondCreator(wx.Frame):
             filename = self.header_tab.get_target_filename()
             category = self.header_tab.get_category()
             parts = self.parts_tab.get_active_parts()
+            index_debut, nombre_couplets = self.parts_tab.get_couplets_block()
             content = build_document(
                 settings, header_values, parts, self.header_tab.composers,
+                nombre_couplets=nombre_couplets,
+                index_debut=index_debut,
             )
         except GenerationError as error:
             wx.MessageBox(str(error), "Création impossible", wx.OK | wx.ICON_ERROR, self)
