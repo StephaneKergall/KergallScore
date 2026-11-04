@@ -70,6 +70,8 @@
             "type": "process",
             "command": "${workspaceFolder}/.prog/ly2video/.venv/bin/ly2video",
             "args": [
+                "-l",
+                "${workspaceFolder}/.prog/lilypond-2.26.0/bin/lilypond",
                 "-i",
                 "${file}",
                 "-o",
