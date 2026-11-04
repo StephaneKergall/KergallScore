@@ -1239,8 +1239,7 @@ class PartsTab(wx.Panel):
                 },
                 "staffs": {
                     "widget": "spin", "repeat": True,
-                    "labels": PIANO_STAFFS_FR, "min": 0,
-                    "max": len(NUMBERS), "default": 1,
+                    "labels": PIANO_STAFFS_FR, "default": 1,
                     "hide_after": 2,
                 },
             },
@@ -1263,83 +1262,81 @@ class PartsTab(wx.Panel):
             title.SetFont(title_font)
             voice_sizer.Add(title, 0, wx.ALL, 8)
             for field in config.values():
-                if isinstance(field, dict) and "widget" in field:
-                    if field.get("repeat"):
+                if field.get("repeat"):
+                    field["var"] = []
+                    if part == "Clavier":
+                        self._staff_rows = []
+                    for index, label in enumerate(field["labels"]):
+                        row = wx.Panel(voice_frame)
+                        row_sizer = wx.BoxSizer(wx.HORIZONTAL)
+                        row.SetSizer(row_sizer)
+                        row_sizer.Add(
+                            wx.StaticText(row, label=label),
+                            0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
+                        )
+                        widget = wx.SpinCtrl(
+                            row, min=1, max=len(NUMBERS),
+                            initial=field["default"],
+                        )
+                        row_sizer.Add(widget, 0, wx.ALIGN_CENTER_VERTICAL)
+                        voice_sizer.Add(row, 0, wx.LEFT | wx.BOTTOM, 5)
+                        field["var"].append(widget)
+                        self._staff_rows.append(row)
+                        if index >= field.get("hide_after", len(field["labels"])):
+                            row.Hide()
+                else:
+                    widget_type = field["widget"]
+                    if widget_type == "spin":
+                        row = wx.Panel(voice_frame)
+                        row_sizer = wx.BoxSizer(wx.HORIZONTAL)
+                        row.SetSizer(row_sizer)
+                        row_sizer.Add(
+                            wx.StaticText(row, label=field["label"]),
+                            0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
+                        )
+                        widget = wx.SpinCtrl(
+                            row, min=1, max=len(NUMBERS),
+                            initial=field["default"],
+                        )
+                        row_sizer.Add(widget, 0, wx.ALIGN_CENTER_VERTICAL)
+                        voice_sizer.Add(row, 0, wx.LEFT | wx.BOTTOM, 15)
+                    elif widget_type == "checkbox":
+                        widget = wx.CheckBox(voice_frame, label=field["label"])
+                        widget.SetValue(field["default"])
+                        voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
+                    elif widget_type == "radio":
                         field["var"] = []
-                        if part == "Clavier":
-                            self._staff_rows = []
                         for index, label in enumerate(field["labels"]):
-                            row = wx.Panel(voice_frame)
-                            row_sizer = wx.BoxSizer(wx.HORIZONTAL)
-                            row.SetSizer(row_sizer)
-                            row_sizer.Add(
-                                wx.StaticText(row, label=label),
-                                0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
+                            widget = wx.RadioButton(
+                                voice_frame,
+                                label=label,
+                                style=wx.RB_GROUP if index == 0 else 0,
                             )
-                            widget = wx.SpinCtrl(
-                                row, min=field["min"], max=field["max"],
-                                initial=field["default"],
-                            )
-                            row_sizer.Add(widget, 0, wx.ALIGN_CENTER_VERTICAL)
-                            voice_sizer.Add(row, 0, wx.LEFT | wx.BOTTOM, 5)
+                            widget.SetValue(index == field["default"])
+                            voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 5)
                             field["var"].append(widget)
-                            self._staff_rows.append(row)
-                            if index >= field.get("hide_after", len(field["labels"])):
-                                row.Hide()
+                    elif widget_type == "choice":
+                        widget = wx.Choice(voice_frame, choices=field["val"])
+                        widget.SetSelection(field["val"].index(field["default"]))
+                        voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
+                    elif widget_type == "combo":
+                        widget = wx.ComboBox(
+                            voice_frame, value=field["default"], choices=field["val"],
+                            style=wx.CB_DROPDOWN,
+                        )
+                        voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
                     else:
-                        widget_type = field["widget"]
-                        if widget_type == "spin":
-                            row = wx.Panel(voice_frame)
-                            row_sizer = wx.BoxSizer(wx.HORIZONTAL)
-                            row.SetSizer(row_sizer)
-                            row_sizer.Add(
-                                wx.StaticText(row, label=field["label"]),
-                                0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
-                            )
-                            widget = wx.SpinCtrl(
-                                row, min=1, max=len(NUMBERS),
-                                initial=field["default"],
-                            )
-                            row_sizer.Add(widget, 0, wx.ALIGN_CENTER_VERTICAL)
-                            voice_sizer.Add(row, 0, wx.LEFT | wx.BOTTOM, 15)
-                        elif widget_type == "checkbox":
-                            widget = wx.CheckBox(voice_frame, label=field["label"])
-                            widget.SetValue(field["default"])
-                            voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
-                        elif widget_type == "radio":
-                            field["var"] = []
-                            for index, label in enumerate(field["labels"]):
-                                widget = wx.RadioButton(
-                                    voice_frame,
-                                    label=label,
-                                    style=wx.RB_GROUP if index == 0 else 0,
-                                )
-                                widget.SetValue(index == field["default"])
-                                voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 5)
-                                field["var"].append(widget)
-                        elif widget_type == "choice":
-                            widget = wx.Choice(voice_frame, choices=field["val"])
-                            widget.SetSelection(field["val"].index(field["default"]))
-                            voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
-                        elif widget_type == "combo":
-                            widget = wx.ComboBox(
-                                voice_frame, value=field["default"], choices=field["val"],
-                                style=wx.CB_DROPDOWN,
-                            )
-                            voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
-                        else:
-                            raise ValueError(f"Type de widget inconnu : {widget_type}")
-                        if widget_type != "radio":
-                            field["var"] = widget
-                            if "event" in field:
-                                callback = getattr(self, field["event"])
-                                event_type = (
-                                    wx.EVT_CHOICE
-                                    if widget_type == "choice" else wx.EVT_COMBOBOX
-                                )
-                                widget.Bind(event_type, callback)
-                                if widget_type == "combo":
-                                    widget.Bind(wx.EVT_TEXT, callback)
+                        raise ValueError(f"Type de widget inconnu : {widget_type}")
+                    field["var"] = field.get("var", widget)
+                    if "event" in field:
+                        callback = getattr(self, field["event"])
+                        event_type = (
+                            wx.EVT_CHOICE
+                            if widget_type == "choice" else wx.EVT_COMBOBOX
+                        )
+                        widget.Bind(event_type, callback)
+                        if widget_type == "combo":
+                            widget.Bind(wx.EVT_TEXT, callback)
             voice_sizer.SetSizeHints(voice_frame)
             voice_frame.Hide()
             if self.right_sizer.GetItemCount():
