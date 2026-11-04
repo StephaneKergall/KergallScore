@@ -549,39 +549,41 @@ def solo_pack(verse_count: int) -> str:
 
 # ---- Flûte -----------------------------------------------------------------
 
-def flute_vars(has_lyrics: bool) -> str:
-    """Déclare la voix de flûte et, si besoin, sa seule ligne de paroles."""
+def flute_vars(verse_count: int) -> str:
+    """Déclare la voix de flûte et ses couplets de paroles numérotés."""
     text = music_var("flute", True, True, "global")
-    if has_lyrics:
-        text += lyric_var("fluteVerse")
+    for verse_index in range(verse_count):
+        text += lyric_var(
+            f"fluteVerse{NUMBERS[verse_index]}",
+            _verse_number(verse_index, verse_count),
+        )
     return text
 
 
-def flute_staff(has_lyrics: bool) -> str:
-    """Bloc ``FlûtePart`` : une portée de flûte, avec paroles optionnelles."""
-    if has_lyrics:
-        return (
-            "FlûtePart = \\new Staff \\with {\n"
-            '\tinstrumentName = "Flûte"\n'
-            '\tshortInstrumentName = "Fl."\n'
-            '\tmidiInstrument = "flute"\n'
-            "} <<\n"
-            '  \\new Voice = "flute" { \\flute }\n'
-            '  \\new Lyrics \\lyricsto "flute" \\fluteVerse\n'
-            ">>\n\n"
-        )
-    return (
+def flute_staff(verse_count: int) -> str:
+    """Bloc ``FlûtePart`` : une portée de flûte avec ses couplets."""
+    lines = [
         "FlûtePart = \\new Staff \\with {\n"
         '\tinstrumentName = "Flûte"\n'
         '\tshortInstrumentName = "Fl."\n'
         '\tmidiInstrument = "flute"\n'
-        "} \\flute\n\n"
-    )
+        "} <<",
+        '  \\new Voice = "flute" { \\flute }',
+    ]
+    for verse_index in range(verse_count):
+        lines.append(
+            f'  \\new Lyrics \\lyricsto "flute" '
+            f"\\fluteVerse{NUMBERS[verse_index]}"
+        )
+    lines.extend((">>", ""))
+    return "\n".join(lines) + "\n"
 
 
-def flute_pack(has_lyrics: bool) -> str:
-    """Assemble variable + portée de la flûte."""
-    return flute_vars(has_lyrics) + flute_staff(has_lyrics)
+def flute_pack(verse_count: int) -> str:
+    """Assemble variables + portée de la flûte."""
+    if not 1 <= verse_count <= len(NUMBERS):
+        raise GenerationError(f"Le nombre de couplets doit être compris entre 1 et {len(NUMBERS)}.")
+    return flute_vars(verse_count) + flute_staff(verse_count)
 
 
 # ==============================================================================
@@ -605,7 +607,7 @@ def build_global_block(settings: MusicSettings) -> str:
     if settings.partial:
         lines.append(f"  \\partial {settings.partial}")
     if settings.tempo_text:
-        # distinction di l'indication de tempo est textuelle ou numérique
+        # distinction si l'indication de tempo est textuelle ou numérique
         if "=" in settings.tempo_text:
             lines.append(f"  \\tempo {settings.tempo_text}")
         else:
@@ -1192,15 +1194,15 @@ class PartsTab(wx.Panel):
 
         self.parts: dict[str, dict] = {
             "Flûte": {
-                "paroles": {
-                    "widget": "checkbox", "label": "Paroles", "default": False,
+                "couplets": {
+                    "widget": "spin",
+                    "label": "Couplets :", "default": 1,
                 },
             },
             "Solo": {
                 "couplets": {
                     "widget": "spin",
-                    "label": "Couplets :", "min": 1,
-                    "max": len(NUMBERS), "default": 1,
+                    "label": "Couplets :", "default": 1,
                 },
             },
             "Choeur": {
@@ -1212,8 +1214,7 @@ class PartsTab(wx.Panel):
                 },
                 "couplets": {
                     "widget": "spin",
-                    "label": "Couplets :", "min": 1,
-                    "max": len(NUMBERS), "default": 1,
+                    "label": "Couplets :", "default": 1,
                 },
                 "meme_paroles": {
                     "widget": "radio",
@@ -1258,7 +1259,12 @@ class PartsTab(wx.Panel):
             voice_sizer = wx.BoxSizer(wx.VERTICAL)
             voice_frame.SetSizer(voice_sizer)
             config["frame"] = voice_frame
-            voice_sizer.Add(wx.StaticText(voice_frame, label=part), 0, wx.ALL, 8)
+            title = wx.StaticText(voice_frame, label=part)
+            title_font = title.GetFont()
+            title_font.SetWeight(wx.FONTWEIGHT_BOLD)
+            title_font.SetPointSize(title_font.GetPointSize() + 2)
+            title.SetFont(title_font)
+            voice_sizer.Add(title, 0, wx.ALL, 8)
             for field in config.values():
                 if not isinstance(field, dict) or "widget" not in field:
                     continue
@@ -1296,7 +1302,7 @@ class PartsTab(wx.Panel):
                         0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
                     )
                     widget = wx.SpinCtrl(
-                        row, min=field["min"], max=field["max"],
+                        row, min=1, max=len(NUMBERS),
                         initial=field["default"],
                     )
                     row_sizer.Add(widget, 0, wx.ALIGN_CENTER_VERTICAL)
@@ -1338,6 +1344,11 @@ class PartsTab(wx.Panel):
                         widget.Bind(wx.EVT_TEXT, callback)
             voice_sizer.SetSizeHints(voice_frame)
             voice_frame.Hide()
+            if self.right_sizer.GetItemCount():
+                separator = wx.StaticLine(right_frame)
+                config["separator"] = separator
+                separator.Hide()
+                self.right_sizer.Add(separator, 0, wx.EXPAND | wx.TOP | wx.BOTTOM, 4)
             self.right_sizer.Add(voice_frame, 0, wx.EXPAND | wx.ALL, 4)
 
         wx.CallAfter(self.schema_voices_changed)
@@ -1369,8 +1380,13 @@ class PartsTab(wx.Panel):
         """Affiche/cache le panneau de réglages de chaque partie selon sa case à cocher."""
         self.Freeze()
         try:
+            has_active = False
             for config in self.parts.values():
-                config["frame"].Show(config["btn"].GetValue())
+                is_active = config["btn"].GetValue()
+                config["frame"].Show(is_active)
+                if "separator" in config:
+                    config["separator"].Show(is_active and has_active)
+                has_active = has_active or is_active
             self.right_sizer.Layout()
             self.Layout()
         finally:
@@ -1383,7 +1399,7 @@ class PartsTab(wx.Panel):
             if not config["btn"].GetValue():
                 continue
             if name == "Flûte":
-                active[name] = flute_pack(bool(config["paroles"]["var"].GetValue()))
+                active[name] = flute_pack(config["couplets"]["var"].GetValue())
             elif name == "Solo":
                 active[name] = solo_pack(config["couplets"]["var"].GetValue())
             elif name == "Choeur":
