@@ -84,6 +84,7 @@ python3 .prog/save.py
 
 - Voices are `soprano`, `alto`, `tenor`, `bass`; mostly absolute pitch (`\fixed c'` / `\fixed c`),
   newer pieces use `\relative`.
+- In Python code, never use `continue`, `break` or `pass`; use explicit conditional logic instead.
 - A `global = { \key … \time … \partial … \autoBeamOff }` block is included at the start of each voice.
 - Each score ends with `\layout {\context{\Staff \RemoveAllEmptyStaves }}` and `\midi {\tempo 4.=NN }`.
 - Lyrics attach to the soprano: one `\new Lyrics` per verse, `\lyricsto "soprano" \verseOne`.

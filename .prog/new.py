@@ -140,12 +140,11 @@ def load_composers() -> dict[str, str]:
         return {}
     composers: dict[str, str] = {}
     for line in content.splitlines():
-        if line.lstrip().startswith("%"):
-            continue
-        match = _COMPOSER_LINE_RE.match(line)
-        if match:
-            name = re.sub(r"\\(.)", r"\1", match.group(2))
-            composers["\\" + match.group(1)] = name
+        if not line.lstrip().startswith("%"):
+            match = _COMPOSER_LINE_RE.match(line)
+            if match:
+                name = re.sub(r"\\(.)", r"\1", match.group(2))
+                composers["\\" + match.group(1)] = name
     return composers
 
 
@@ -457,16 +456,15 @@ def piano_vars(staffs: list[int]) -> str:
     """Déclare les variables musicales de chaque main (et voix superposées) du clavier."""
     parts: list[str] = []
     for staff_index, voice_count in enumerate(staffs):
-        if voice_count == 0:
-            continue
-        high = staff_index == 0
-        if voice_count == 1:
-            parts.append(music_var(piano_part_name(staff_index), False, high, "global"))
-        else:
-            for voice_index in range(voice_count):
-                parts.append(
-                    music_var(piano_part_name(staff_index, voice_index), False, high, "global")
-                )
+        if voice_count != 0:
+            high = staff_index == 0
+            if voice_count == 1:
+                parts.append(music_var(piano_part_name(staff_index), False, high, "global"))
+            else:
+                for voice_index in range(voice_count):
+                    parts.append(
+                        music_var(piano_part_name(staff_index, voice_index), False, high, "global")
+                    )
     return "".join(parts)
 
 
@@ -483,18 +481,17 @@ def piano_staff(staffs: list[int]) -> str:
     text += "} <<\n"
 
     for staff_index, voice_count in enumerate(staffs):
-        if voice_count == 0:
-            continue
-        clef = "\\clef bass " if staff_index > 0 else ""
-        text += f'  \\new Staff = "{PIANO_STAFFS[staff_index]}" {{ {clef}'
-        if voice_count == 1:
-            text += f"\\{piano_part_name(staff_index)} }}\n"
-        else:
-            voices = " \\\\ ".join(
-                f"\\{piano_part_name(staff_index, voice_index)}"
-                for voice_index in range(voice_count)
-            )
-            text += f"<< {voices} >> }}\n"
+        if voice_count != 0:
+            clef = "\\clef bass " if staff_index > 0 else ""
+            text += f'  \\new Staff = "{PIANO_STAFFS[staff_index]}" {{ {clef}'
+            if voice_count == 1:
+                text += f"\\{piano_part_name(staff_index)} }}\n"
+            else:
+                voices = " \\\\ ".join(
+                    f"\\{piano_part_name(staff_index, voice_index)}"
+                    for voice_index in range(voice_count)
+                )
+                text += f"<< {voices} >> }}\n"
 
     return text + ">>\n\n"
 
@@ -1266,82 +1263,83 @@ class PartsTab(wx.Panel):
             title.SetFont(title_font)
             voice_sizer.Add(title, 0, wx.ALL, 8)
             for field in config.values():
-                if not isinstance(field, dict) or "widget" not in field:
-                    continue
-                if field.get("repeat"):
-                    field["var"] = []
-                    if part == "Clavier":
-                        self._staff_rows = []
-                    for index, label in enumerate(field["labels"]):
-                        row = wx.Panel(voice_frame)
-                        row_sizer = wx.BoxSizer(wx.HORIZONTAL)
-                        row.SetSizer(row_sizer)
-                        row_sizer.Add(
-                            wx.StaticText(row, label=label),
-                            0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
-                        )
-                        widget = wx.SpinCtrl(
-                            row, min=field["min"], max=field["max"],
-                            initial=field["default"],
-                        )
-                        row_sizer.Add(widget, 0, wx.ALIGN_CENTER_VERTICAL)
-                        voice_sizer.Add(row, 0, wx.LEFT | wx.BOTTOM, 5)
-                        field["var"].append(widget)
-                        self._staff_rows.append(row)
-                        if index >= field.get("hide_after", len(field["labels"])):
-                            row.Hide()
-                    continue
-
-                widget_type = field["widget"]
-                if widget_type == "spin":
-                    row = wx.Panel(voice_frame)
-                    row_sizer = wx.BoxSizer(wx.HORIZONTAL)
-                    row.SetSizer(row_sizer)
-                    row_sizer.Add(
-                        wx.StaticText(row, label=field["label"]),
-                        0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
-                    )
-                    widget = wx.SpinCtrl(
-                        row, min=1, max=len(NUMBERS),
-                        initial=field["default"],
-                    )
-                    row_sizer.Add(widget, 0, wx.ALIGN_CENTER_VERTICAL)
-                    voice_sizer.Add(row, 0, wx.LEFT | wx.BOTTOM, 15)
-                elif widget_type == "checkbox":
-                    widget = wx.CheckBox(voice_frame, label=field["label"])
-                    widget.SetValue(field["default"])
-                    voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
-                elif widget_type == "radio":
-                    field["var"] = []
-                    for index, label in enumerate(field["labels"]):
-                        widget = wx.RadioButton(
-                            voice_frame,
-                            label=label,
-                            style=wx.RB_GROUP if index == 0 else 0,
-                        )
-                        widget.SetValue(index == field["default"])
-                        voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 5)
-                        field["var"].append(widget)
-                    continue
-                elif widget_type == "choice":
-                    widget = wx.Choice(voice_frame, choices=field["val"])
-                    widget.SetSelection(field["val"].index(field["default"]))
-                    voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
-                elif widget_type == "combo":
-                    widget = wx.ComboBox(
-                        voice_frame, value=field["default"], choices=field["val"],
-                        style=wx.CB_DROPDOWN,
-                    )
-                    voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
-                else:
-                    raise ValueError(f"Type de widget inconnu : {widget_type}")
-                field["var"] = widget
-                if "event" in field:
-                    callback = getattr(self, field["event"])
-                    event_type = wx.EVT_CHOICE if widget_type == "choice" else wx.EVT_COMBOBOX
-                    widget.Bind(event_type, callback)
-                    if widget_type == "combo":
-                        widget.Bind(wx.EVT_TEXT, callback)
+                if isinstance(field, dict) and "widget" in field:
+                    if field.get("repeat"):
+                        field["var"] = []
+                        if part == "Clavier":
+                            self._staff_rows = []
+                        for index, label in enumerate(field["labels"]):
+                            row = wx.Panel(voice_frame)
+                            row_sizer = wx.BoxSizer(wx.HORIZONTAL)
+                            row.SetSizer(row_sizer)
+                            row_sizer.Add(
+                                wx.StaticText(row, label=label),
+                                0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
+                            )
+                            widget = wx.SpinCtrl(
+                                row, min=field["min"], max=field["max"],
+                                initial=field["default"],
+                            )
+                            row_sizer.Add(widget, 0, wx.ALIGN_CENTER_VERTICAL)
+                            voice_sizer.Add(row, 0, wx.LEFT | wx.BOTTOM, 5)
+                            field["var"].append(widget)
+                            self._staff_rows.append(row)
+                            if index >= field.get("hide_after", len(field["labels"])):
+                                row.Hide()
+                    else:
+                        widget_type = field["widget"]
+                        if widget_type == "spin":
+                            row = wx.Panel(voice_frame)
+                            row_sizer = wx.BoxSizer(wx.HORIZONTAL)
+                            row.SetSizer(row_sizer)
+                            row_sizer.Add(
+                                wx.StaticText(row, label=field["label"]),
+                                0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
+                            )
+                            widget = wx.SpinCtrl(
+                                row, min=1, max=len(NUMBERS),
+                                initial=field["default"],
+                            )
+                            row_sizer.Add(widget, 0, wx.ALIGN_CENTER_VERTICAL)
+                            voice_sizer.Add(row, 0, wx.LEFT | wx.BOTTOM, 15)
+                        elif widget_type == "checkbox":
+                            widget = wx.CheckBox(voice_frame, label=field["label"])
+                            widget.SetValue(field["default"])
+                            voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
+                        elif widget_type == "radio":
+                            field["var"] = []
+                            for index, label in enumerate(field["labels"]):
+                                widget = wx.RadioButton(
+                                    voice_frame,
+                                    label=label,
+                                    style=wx.RB_GROUP if index == 0 else 0,
+                                )
+                                widget.SetValue(index == field["default"])
+                                voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 5)
+                                field["var"].append(widget)
+                        elif widget_type == "choice":
+                            widget = wx.Choice(voice_frame, choices=field["val"])
+                            widget.SetSelection(field["val"].index(field["default"]))
+                            voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
+                        elif widget_type == "combo":
+                            widget = wx.ComboBox(
+                                voice_frame, value=field["default"], choices=field["val"],
+                                style=wx.CB_DROPDOWN,
+                            )
+                            voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
+                        else:
+                            raise ValueError(f"Type de widget inconnu : {widget_type}")
+                        if widget_type != "radio":
+                            field["var"] = widget
+                            if "event" in field:
+                                callback = getattr(self, field["event"])
+                                event_type = (
+                                    wx.EVT_CHOICE
+                                    if widget_type == "choice" else wx.EVT_COMBOBOX
+                                )
+                                widget.Bind(event_type, callback)
+                                if widget_type == "combo":
+                                    widget.Bind(wx.EVT_TEXT, callback)
             voice_sizer.SetSizeHints(voice_frame)
             voice_frame.Hide()
             if self.right_sizer.GetItemCount():
@@ -1396,29 +1394,28 @@ class PartsTab(wx.Panel):
         """Blocs Lilypond des parties cochées, validés, dans l'ordre d'affichage."""
         active: dict[str, str] = {}
         for name, config in self.parts.items():
-            if not config["btn"].GetValue():
-                continue
-            if name == "Flûte":
-                active[name] = flute_pack(config["couplets"]["var"].GetValue())
-            elif name == "Solo":
-                active[name] = solo_pack(config["couplets"]["var"].GetValue())
-            elif name == "Choeur":
-                lyrics_modes = (
-                    CHOIR_LYRICS_ALL_STAFFS,
-                    CHOIR_LYRICS_ALL_BUT_LAST,
-                    CHOIR_LYRICS_ALL_VOICES,
-                )
-                active[name] = choir_pack(
-                    config["schema"]["var"].GetValue().strip().upper(),
-                    config["couplets"]["var"].GetValue(),
-                    lyrics_modes[config["lyrics_application"]["var"].GetSelection()],
-                    bool(config["meme_paroles"]["var"][0].GetValue()),
-                )
-            elif name == "Clavier":
-                active[name] = clavier_pack(
-                    [control.GetValue() for control in config["staffs"]["var"]],
-                    config["type"]["var"].GetStringSelection() == "Orgue",
-                )
+            if config["btn"].GetValue():
+                if name == "Flûte":
+                    active[name] = flute_pack(config["couplets"]["var"].GetValue())
+                elif name == "Solo":
+                    active[name] = solo_pack(config["couplets"]["var"].GetValue())
+                elif name == "Choeur":
+                    lyrics_modes = (
+                        CHOIR_LYRICS_ALL_STAFFS,
+                        CHOIR_LYRICS_ALL_BUT_LAST,
+                        CHOIR_LYRICS_ALL_VOICES,
+                    )
+                    active[name] = choir_pack(
+                        config["schema"]["var"].GetValue().strip().upper(),
+                        config["couplets"]["var"].GetValue(),
+                        lyrics_modes[config["lyrics_application"]["var"].GetSelection()],
+                        bool(config["meme_paroles"]["var"][0].GetValue()),
+                    )
+                elif name == "Clavier":
+                    active[name] = clavier_pack(
+                        [control.GetValue() for control in config["staffs"]["var"]],
+                        config["type"]["var"].GetStringSelection() == "Orgue",
+                    )
         if not active:
             raise GenerationError("Sélectionnez au moins une partie dans l'onglet « Parties ».")
         return active
