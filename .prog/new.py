@@ -260,11 +260,6 @@ def voice_name(index: int, schema: str) -> str:
     return VOICES[voice]
 
 
-def lyric_name(voice_var: str, verse_index: int) -> str:
-    """Nom de variable pour un couplet de paroles (ex: ``sopranoVerseOne``)."""
-    return f"{voice_var}Verse{NUMBERS[verse_index]}"
-
-
 def voice_block(voice_var: str, staff_voice_index: int | None) -> str:
     """Ligne ``\\new Voice`` référençant la variable musicale correspondante.
 
@@ -276,11 +271,26 @@ def voice_block(voice_var: str, staff_voice_index: int | None) -> str:
     return f'{prefix}\\new Voice = "{voice_var}" {{{voice_override}\\{voice_var} }}\n'
 
 
-def lyrics_block(voice_var: str, variable_name: str) -> str:
+CHOIR_LYRICS_ALL_STAFFS = "all_staffs"
+CHOIR_LYRICS_ALL_BUT_LAST = "all_but_last_staff"
+CHOIR_LYRICS_ALL_VOICES = "all_voices"
+
+
+def lyrics_block(
+    voice_var: str,
+    variable_name: str,
+    align_above_context: str | None = None,
+) -> str:
     """Bloc ``\\new Lyrics`` rattachant un couplet à sa voix."""
+    alignment = (
+        f'    alignAboveContext = #"{align_above_context}"\n'
+        if align_above_context else ""
+    )
+    staff_affinity = "#DOWN" if align_above_context else "#CENTER"
     return (
         "  \\new Lyrics \\with {\n"
-        "    \\override VerticalAxisGroup.staff-affinity = #CENTER\n"
+        f"    \\override VerticalAxisGroup.staff-affinity = {staff_affinity}\n"
+        f"{alignment}"
         "  }"
         f' \\lyricsto "{voice_var}" \\{variable_name}\n'
     )
@@ -296,13 +306,19 @@ def choir_vars(schema: str, verse_count: int, shared_lyrics: bool) -> str:
         if not shared_lyrics:
             for verse_index in range(verse_count):
                 parts.append(
-                    lyric_var(lyric_name(name, verse_index), _verse_number(verse_index, verse_count))
+                    lyric_var(
+                        f"{name}Verse{NUMBERS[verse_index]}",
+                        _verse_number(verse_index, verse_count),
+                    )
                 )
         parts.append("\n")
     if shared_lyrics:
         for verse_index in range(verse_count):
             parts.append(
-                lyric_var(f"Verse{NUMBERS[verse_index]}", _verse_number(verse_index, verse_count))
+                lyric_var(
+                    f"Verse{NUMBERS[verse_index]}",
+                    _verse_number(verse_index, verse_count),
+                )
             )
     parts.append("\n")
     return "".join(parts)
@@ -315,31 +331,47 @@ def _choir_lyrics(
     voices: str,
     first_voice_index: int,
     verse_count: int,
+    lyrics_mode: str,
     shared_lyrics: bool,
 ) -> str:
     """Lignes ``\\new Lyrics`` d'une portée du chœur."""
-    if shared_lyrics:
-        # Paroles communes : une seule ligne par portée, sauf pour un chœur à deux
-        # portées où elles sont traditionnellement placées entre les deux.
-        if len(staff_groups) > 2 or group_index == 0:
-            voice_var = voice_name(first_voice_index, voices)
-            blocks = [
-                lyrics_block(voice_var, f"Verse{NUMBERS[verse_index]}")
-                for verse_index in range(verse_count)
-            ]
-            return "".join(blocks) + "\n"
+    last_staff = len(staff_groups) - 1
+    applies_to_staff = (
+        lyrics_mode in {CHOIR_LYRICS_ALL_STAFFS, CHOIR_LYRICS_ALL_VOICES}
+        or (
+            lyrics_mode == CHOIR_LYRICS_ALL_BUT_LAST
+            and group_index < last_staff
+        )
+    )
+    if not applies_to_staff:
         return ""
 
-    # Paroles distinctes : chaque voix reçoit ses propres couplets.
     blocks = []
-    for offset in range(len(group)):
+    voice_offsets = range(len(group)) if (
+        lyrics_mode == CHOIR_LYRICS_ALL_VOICES or not shared_lyrics
+    ) else range(1)
+    for offset in voice_offsets:
         voice_var = voice_name(first_voice_index + offset, voices)
+        align_above_context = (
+            f"choirStaff{NUMBERS[group_index]}"
+            if lyrics_mode == CHOIR_LYRICS_ALL_VOICES and offset == 0 else None
+        )
         for verse_index in range(verse_count):
-            blocks.append(lyrics_block(voice_var, lyric_name(voice_var, verse_index)))
+            variable_name = (
+                f"Verse{NUMBERS[verse_index]}"
+                if shared_lyrics else
+                f"{voice_var}Verse{NUMBERS[verse_index]}"
+            )
+            blocks.append(lyrics_block(voice_var, variable_name, align_above_context))
     return "".join(blocks) + "\n"
 
 
-def choir_staff(schema: str, verse_count: int, shared_lyrics: bool) -> str:
+def choir_staff(
+    schema: str,
+    verse_count: int,
+    lyrics_mode: str,
+    shared_lyrics: bool,
+) -> str:
     """Bloc ``ChoeurPart`` : une portée par groupe de voix du ``schema`` (ex: ``"SA-TB"``)."""
     staff_groups = schema.split("-")
     voices = schema.replace("-", "")
@@ -353,7 +385,11 @@ def choir_staff(schema: str, verse_count: int, shared_lyrics: bool) -> str:
     first_voice_index = 0
     for group_index, group in enumerate(staff_groups):
         is_polyphonic = len(group) > 1
-        text += "  \\new Staff \\with {\n"
+        staff_name = (
+            f' = "choirStaff{NUMBERS[group_index]}"'
+            if lyrics_mode == CHOIR_LYRICS_ALL_VOICES else ""
+        )
+        text += f"  \\new Staff{staff_name} \\with {{\n"
         if show_instrument_names:
             if is_polyphonic:
                 names = " ".join(ly_string(f"{letter}.") for letter in group)
@@ -380,20 +416,34 @@ def choir_staff(schema: str, verse_count: int, shared_lyrics: bool) -> str:
 
         text += _choir_lyrics(
             staff_groups, group_index, group, voices, first_voice_index,
-            verse_count, shared_lyrics,
+            verse_count, lyrics_mode, shared_lyrics,
         )
         first_voice_index += len(group)
 
     return text + ">>\n\n"
 
 
-def choir_pack(schema: str, verse_count: int, shared_lyrics: bool) -> str:
+def choir_pack(
+    schema: str,
+    verse_count: int,
+    lyrics_mode: str,
+    shared_lyrics: bool,
+) -> str:
     """Assemble variables + portées pour la partie « Choeur »."""
     schema = schema.strip().upper()
     validate_choir_schema(schema)
     if not 1 <= verse_count <= len(NUMBERS):
         raise GenerationError(f"Le nombre de couplets doit être compris entre 1 et {len(NUMBERS)}.")
-    return choir_vars(schema, verse_count, shared_lyrics) + choir_staff(schema, verse_count, shared_lyrics)
+    if lyrics_mode not in {
+        CHOIR_LYRICS_ALL_STAFFS,
+        CHOIR_LYRICS_ALL_BUT_LAST,
+        CHOIR_LYRICS_ALL_VOICES,
+    }:
+        raise GenerationError("Choisissez une application valide des paroles.")
+    return (
+        choir_vars(schema, verse_count, shared_lyrics)
+        + choir_staff(schema, verse_count, lyrics_mode, shared_lyrics)
+    )
 
 
 # ---- Clavier (piano ou orgue) ---------------------------------------------
@@ -1166,8 +1216,21 @@ class PartsTab(wx.Panel):
                     "max": len(NUMBERS), "default": 1,
                 },
                 "meme_paroles": {
-                    "widget": "checkbox",
-                    "label": "Même paroles pour toutes les voix", "default": True,
+                    "widget": "radio",
+                    "labels": (
+                        "Même paroles pour toutes les voix",
+                        "Paroles différentes selon les voix",
+                    ),
+                    "default": 0,
+                },
+                "lyrics_application": {
+                    "widget": "choice",
+                    "val": (
+                        "Tous les staffs",
+                        "Tous les staffs sauf le dernier",
+                        "Toutes les voix",
+                    ),
+                    "default": "Tous les staffs",
                 },
             },
             "Clavier": {
@@ -1242,6 +1305,18 @@ class PartsTab(wx.Panel):
                     widget = wx.CheckBox(voice_frame, label=field["label"])
                     widget.SetValue(field["default"])
                     voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 15)
+                elif widget_type == "radio":
+                    field["var"] = []
+                    for index, label in enumerate(field["labels"]):
+                        widget = wx.RadioButton(
+                            voice_frame,
+                            label=label,
+                            style=wx.RB_GROUP if index == 0 else 0,
+                        )
+                        widget.SetValue(index == field["default"])
+                        voice_sizer.Add(widget, 0, wx.LEFT | wx.BOTTOM, 5)
+                        field["var"].append(widget)
+                    continue
                 elif widget_type == "choice":
                     widget = wx.Choice(voice_frame, choices=field["val"])
                     widget.SetSelection(field["val"].index(field["default"]))
@@ -1276,9 +1351,11 @@ class PartsTab(wx.Panel):
         self.Layout()
 
     def schema_voices_changed(self, *_args):
-        """Affiche le choix « même paroles » dès que le chœur comporte plusieurs portées."""
+        """Actualise le placement par défaut des paroles selon le nombre de portées."""
         choir = self.parts["Choeur"]
-        choir["meme_paroles"]["var"].Show("-" in choir["schema"]["var"].GetValue())
+        staff_count = len(choir["schema"]["var"].GetValue().split("-"))
+        default = 1 if staff_count == 2 else 0
+        choir["lyrics_application"]["var"].SetSelection(default)
         self._resize_part_frame(choir["frame"])
 
     def clavier_changed(self, *_args):
@@ -1310,10 +1387,16 @@ class PartsTab(wx.Panel):
             elif name == "Solo":
                 active[name] = solo_pack(config["couplets"]["var"].GetValue())
             elif name == "Choeur":
+                lyrics_modes = (
+                    CHOIR_LYRICS_ALL_STAFFS,
+                    CHOIR_LYRICS_ALL_BUT_LAST,
+                    CHOIR_LYRICS_ALL_VOICES,
+                )
                 active[name] = choir_pack(
                     config["schema"]["var"].GetValue().strip().upper(),
                     config["couplets"]["var"].GetValue(),
-                    bool(config["meme_paroles"]["var"].GetValue()),
+                    lyrics_modes[config["lyrics_application"]["var"].GetSelection()],
+                    bool(config["meme_paroles"]["var"][0].GetValue()),
                 )
             elif name == "Clavier":
                 active[name] = clavier_pack(
