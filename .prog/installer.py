@@ -30,6 +30,28 @@ def download(url: str, destination: Path):
     print()
 
 
+def install_python_repository(repository_url: str, repository_dir: Path, *, editable: bool):
+    """Clone a writable SSH repository and install its Python dependencies."""
+    if not repository_dir.exists():
+        run("git", "clone", repository_url, str(repository_dir))
+    elif not (repository_dir / ".git").exists():
+        raise RuntimeError(f"{repository_dir} existe mais n'est pas un dépôt Git")
+    else:
+        run("git", "-C", str(repository_dir), "remote", "set-url", "origin", repository_url)
+
+    requirements_file = repository_dir / "requirements.txt"
+    if not requirements_file.is_file():
+        raise FileNotFoundError(f"requirements.txt absent dans {repository_dir}")
+
+    virtualenv_dir = repository_dir / ".venv"
+    run("python3", "-m", "venv", str(virtualenv_dir))
+    python = virtualenv_dir / "bin" / "python"
+    run(str(python), "-m", "pip", "install", "--upgrade", "pip")
+    run(str(python), "-m", "pip", "install", "-r", str(requirements_file))
+    if editable:
+        run(str(python), "-m", "pip", "install", "--editable", str(repository_dir))
+
+
 # apt
 run("sudo", "apt", "update")
 run("sudo", "apt", "install", "-y", *APT_LIST)
@@ -55,32 +77,11 @@ lilypond_ly_dir = PROG_DIR / "lilypond-2.26.0" / "share" / "lilypond" / "2.26.0"
 for util_file in (ROOT_DIR / ".utils").iterdir():
     run("cp", str(util_file), str(lilypond_ly_dir))
 
-# ly2video
+# ly2video et pdf2ly
 ly2video_dir = PROG_DIR / "ly2video"
-if not ly2video_dir.exists():
-    run("git", "clone", LY2VIDEO_URL, str(ly2video_dir))
-ly2video_venv = ly2video_dir / ".venv"
-if not ly2video_venv.exists():
-    run("python3", "-m", "venv", str(ly2video_venv))
-ly2video_python = ly2video_venv / "bin" / "python"
-run(str(ly2video_python), "-m", "pip", "install", "--upgrade", "pip")
-run(str(ly2video_python), "-m", "pip", "install", "--editable", str(ly2video_dir))
-
-# pdf2ly
+install_python_repository(LY2VIDEO_URL, ly2video_dir, editable=True)
 pdf2ly_dir = PROG_DIR / "pdf2ly"
-run("git", "clone", PDF2LY_URL, str(pdf2ly_dir))
-pdf2ly_venv = pdf2ly_dir / ".venv"
-run("python3", "-m", "venv", str(pdf2ly_venv))
-pdf2ly_python = pdf2ly_venv / "bin" / "python"
-run(str(pdf2ly_python), "-m", "pip", "install", "--upgrade", "pip")
-run(
-    str(pdf2ly_python),
-    "-m",
-    "pip",
-    "install",
-    "-r",
-    str(pdf2ly_dir / "requirements.txt"),
-)
+install_python_repository(PDF2LY_URL, pdf2ly_dir, editable=False)
 
 # bashrc
 print("Configuration...")
