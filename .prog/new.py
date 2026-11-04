@@ -1261,7 +1261,11 @@ class PartsTab(wx.Panel):
             title_font.SetPointSize(title_font.GetPointSize() + 2)
             title.SetFont(title_font)
             voice_sizer.Add(title, 0, wx.ALL, 8)
-            for field in config.values():
+            fields = (
+                field for field in config.values()
+                if isinstance(field, dict) and "widget" in field
+            )
+            for field in fields:
                 if field.get("repeat"):
                     field["var"] = []
                     if part == "Clavier":
