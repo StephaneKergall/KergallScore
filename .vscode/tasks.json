@@ -75,7 +75,7 @@
                 "-i",
                 "${file}",
                 "-o",
-                "${fileDirname}/${fileBasenameNoExtension}.mp4"
+                "${fileDirname}/${fileBasenameNoExtension}.avi"
             ],
             "options": {
                 "cwd": "${fileDirname}"
