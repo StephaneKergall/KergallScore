@@ -216,6 +216,27 @@ ChoeurPart = \new ChoirStaff \with {
 '''
     for v in range(4):
         ly = ly.replace(f"%BODY{v}%", body[v]).replace(f"%LYR{v}%", lyrtext[v])
+    # Remove \\bar"|." from non-soprano voices: time and bar only in
+    # premiere voix or global -- other voices should not duplicate the bar line
+    # Keep soprano voice section with bar, remove from the rest
+    soprano_start = ly.find('soprano =')
+    soprano_end = ly.find('alto =', soprano_start)
+    soprano_section = ly[soprano_start:soprano_end]
+    rest = ly[soprano_end:]
+    # Pattern: backslash + bar"|." % number
+    backslash = chr(92)
+    search = backslash + 'bar"|." % 25
+    # Remove from the rest
+    rest = rest.replace(search, '')
+    # Add bar back only in soprano section at the end of its music
+    last_nl = soprano_section.rfind('}
+
+')
+    if last_nl >= 0:
+        soprano_section = soprano_section[:last_nl] + search + '
+
+' + soprano_section[last_nl:]
+    ly = soprano_section + rest
     ly = (
         ly.replace("%TITLE%", title)
         .replace("%SUBTITLE%", subtitle)
