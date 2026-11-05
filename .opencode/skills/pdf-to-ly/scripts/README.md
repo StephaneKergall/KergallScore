@@ -114,6 +114,20 @@ lit pas les flux Type1C, utiliser la police TrueType quand elle existe.
 - `lyrics.json` : syllabes alignées par `(page, système, voix)`.
 - `detect.json` : diagnostic mis en cache par `pipeline.py`.
 
+## Validation de la sortie
+
+Après le pipeline, il est recommandé de valider le résultat :
+
+```bash
+python3 scripts/validate_output.py <piece-dir>
+```
+
+Cela vérifie :
+- la structure requise du `.ly` (version, includes, voix, layout, midi, toc)
+- la présence des données en cache (`parsed.json`, `transcription.json`, `lyrics.json`)
+- l'entrée du compositeur dans `.utils/composers.ily`
+- les avertissements potentiels (voix manquantes, clefs manquantes, etc.)
+
 ### Limites connues
 
 - Détection des silences par somme de durées et plus grand intervalle x.

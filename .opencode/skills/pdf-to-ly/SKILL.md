@@ -71,11 +71,10 @@ PDF vectoriel / MusicXML / MIDI.
 
 ## 3. Références à ouvrir seulement si nécessaire
 
-- `scripts/reference/MAESTRO_CODES.md` — **seulement** si police non-Maestro,
-  notes/silences faux, ou adaptation des constantes (`BEATS`, `CLEFS`, codes…).
-- `scripts/reference/LATIN_STRESS.md` — **seulement** pour des paroles latines.
-- `scripts/reference/SKELETON_MODE.md` — **seulement** si un squelette
-  `.prog/new.py` existe : injection uniquement, jamais de régénération.
+- `scripts/reference/MAESTRO_CODES.md` — police non-Maestro, notes/silences faux, ou adaptation des constantes (`BEATS`, `CLEFS`, codes…).
+- `scripts/reference/LATIN_STRESS.md` — pour des paroles latines.
+- `scripts/reference/SKELETON_MODE.md` — si un squelette
+ `.prog/new.py` existe : injection uniquement, jamais de régénération.
 - `scripts/README.md` — variables d'environnement, cache, scripts un par un.
 
 ## 4. Contrôles qualité (après le pipeline)
@@ -87,6 +86,11 @@ PDF vectoriel / MusicXML / MIDI.
 - `.pdf` et `.midi` présents et plus récents que le `.ly` ;
 - contrôle visuel du premier et du dernier système ;
 - si `.utils/` a été modifié : recopier dans l'installation LilyPond (gotcha 2).
+- **Supprimer le dossier cache** : `rm -rf <out-dir>/cache/`
+  après validation .
+- **valider la cohérence** : utiliser `scripts/validate_output.py <piece-dir>` pour
+  vérifier la structure du `.ly`, la présence des voix, les données en cache, et
+  l'entrée dans `.utils/composers.ily`.
 
 Si une correction manuelle est nécessaire, ne recompiler **qu'une fois** à la fin :
 
@@ -117,3 +121,4 @@ Si une correction manuelle est nécessaire, ne recompiler **qu'une fois** à la 
 | `scripts/reference/lyrics_json.py` | paroles + alignement |
 | `scripts/reference/write_ly.py` | `.ly` complet (hors squelette) |
 | `scripts/py.sh` / `setup_venv.sh` | choix du Python / venv idempotent |
+| `scripts/validate_output.py` | valide la sortie `.ly` et les données cache (nouveau) |

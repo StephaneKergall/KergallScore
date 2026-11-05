@@ -1,6 +1,6 @@
 # Accentuation des paroles latines
 
-À ouvrir **seulement** si les paroles sont en latin (*Tantum ergo*, *Pange
+À ouvrir si les paroles sont en latin (*Tantum ergo*, *Pange
 lingua*, *Adoro te*…).
 
 Ajouter l'accent aigu sur la **seule syllabe tonique** de chaque mot de **plus
@@ -16,7 +16,7 @@ seule syllabe est accentuée par mot (jamais d'accent secondaire).
 - les mots à enclitique `-que` sont accentués sur la syllabe qui précède
   l'enclitique (`Ge -- ni -- tó -- que`, `u -- tró -- que`, `quó -- que`).
 - attention : il existe des exception. Vérifier en cas de doute sur le web.
-
+- en supplément : transformer systématiquement le `ae` en `æ` et les `oe` en `œ`
 ## Exemples
 
 | Latin | Paroles |
