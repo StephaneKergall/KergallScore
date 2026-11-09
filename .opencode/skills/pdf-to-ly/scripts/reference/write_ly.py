@@ -225,17 +225,13 @@ ChoeurPart = \new ChoirStaff \with {
     rest = ly[soprano_end:]
     # Pattern: backslash + bar"|." % number
     backslash = chr(92)
-    search = backslash + 'bar"|." % 25
+    search = backslash + 'bar"|." % 25'
     # Remove from the rest
     rest = rest.replace(search, '')
     # Add bar back only in soprano section at the end of its music
-    last_nl = soprano_section.rfind('}
-
-')
+    last_nl = soprano_section.rfind('}\n\n')
     if last_nl >= 0:
-        soprano_section = soprano_section[:last_nl] + search + '
-
-' + soprano_section[last_nl:]
+        soprano_section = soprano_section[:last_nl] + search + '\n\n' + soprano_section[last_nl:]
     ly = soprano_section + rest
     ly = (
         ly.replace("%TITLE%", title)
