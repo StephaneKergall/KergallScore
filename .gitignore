@@ -11,6 +11,8 @@ uninstaller.py
 lilypond-tmp-*.pdf
 Anima Christi - Frisina.midi
 Anima Christi - Frisina.pdf
+Vous êtes dans mon âme - Barbey.pdf
+Vous êtes dans mon âme - Barbey.midi
 *.musicxml
 .fuse_hidden*
 ly2video/
