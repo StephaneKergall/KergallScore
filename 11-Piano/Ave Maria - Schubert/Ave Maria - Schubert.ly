@@ -47,7 +47,7 @@ verseOne = \strophemode 1 ##f 2 \lyricmode {
     be8. -- ne16 -- dic4 -- |
     tus,4 \skip 8 et8 |
     be8. -- ne16 -- dic16. -- tus32 \tuplet 3/2 { fruc8 -- tus16 } |
-    \grace { ven16 -- } \skip 8 tris,8 \skip 8 ve,16 -- tris16 |
+    \grace { ven16 -- } \skip 8 tris,8 \skip 8 ven16 -- tris16 |
     \grace { tu16 -- } \skip 8. i,16 Je4 -- |
     sus.4. \skip 8 |
     A4. -- ve16 Ma16 -- |
@@ -200,7 +200,7 @@ left = \fixed c, {
     \octave f' \octave f' \octave bes \octave g
     \octave f \octave f
     \repeat unfold 12 {\octave bes}
-    <bes, f bes d' f' bes' d''>2 \fermata
+    <bes, bes d' f' bes'>2 \fermata
 }
 
 
