@@ -26,7 +26,7 @@ rightOne = \fixed c' {
     <c f a>2 2 r4 <g bes> |
     <c e g>2 2 r4 <f a> |
     <d g bes>2 <c g bes>2 r4 <a c'>4 |
-    <d f a>2. a4 d' cis' |
+    <c f a>2. a4 d' cis' |
     d' e' f'2 e'4 d' |
     <f a d'>2 2 r | \fine \bar ":|." \break
   
