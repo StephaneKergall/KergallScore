@@ -1,3 +1,8 @@
+%{
+  Le pdf et le midi ne sont pas disponibles publiquement
+  pour des raisons morales. Contactez-nous à l'adresse
+  stef.kergall@gmail.com pour les obtenir.
+%}
 \version "2.26.0"
 \include "settings.ily"
 \include "composers.ily"
