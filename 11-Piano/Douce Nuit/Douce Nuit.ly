@@ -9,12 +9,12 @@ global = {
 
 scoreAFluteI = \fixed c'' {
   \global
-  \repeat segno 2 { g4.(a8) g4 e2.\breathe g4.(a8) g4 e2.\breathe
+  \bar ".|:"\repeat segno 2 { g4.(a8) g4 e2.\breathe g4.(a8) g4 e2.\breathe
   d'2 4 b2.\breathe c'2 4 g2.\breathe
   \bar ".|:" a2 4 c'4. b8 a4 g4. a8 g4 e2.\breathe \bar ":|."
   d'2 4 f'4. d'8 b4\breathe c'2.(e')\breathe
   c'4.(g8) e4 g4. f8 d4\breathe c2.}
-  \bar "|."
+  \bar ":|."
 }
 
 scoreAFluteII = \fixed c'' {
@@ -23,7 +23,7 @@ scoreAFluteII = \fixed c'' {
   \repeat unfold 2 {g8[c e a] g[c] e[g, c e g, c]\breathe}
   d[d, g, d] d,[g,] b,[d, g, b, d, g,]\breathe c[c e g] c[e] g[c e g g, c]\breathe
   a[c f a] c[f] c'[c f] b a[c] g[c e] a g[c] e[g, c e g, c]\breathe
-  d[d, g, d] d,[g,] f[a, b,] d b,[g,] \breathe c\coda([e, g, c e, g,] e2.)\breathe
+  d[d, g, b,] d,[g,] f[a, b,] d b,[g,] \breathe c\coda([e, g, c e, g,] e2.)\breathe
   c'8[c e g] e[c] g[b, d] f d[b,]\breathe c2.
 }
 
