@@ -20,7 +20,7 @@ soprano = \fixed c' {
   \repeat volta 3 {
     a2\mf 4 b g2 4 a b2 4 c' a2 b2
     4 a8 g d'4 8 8 4 e'8 fis' g'4 fis'8[e']
-    d'4 c'8[b]a4 4
+    d'4 c'8[b]a4 4 \bar "||"
   }
   \alternative {
     \volta 1,3 {g2. r4 \break}
