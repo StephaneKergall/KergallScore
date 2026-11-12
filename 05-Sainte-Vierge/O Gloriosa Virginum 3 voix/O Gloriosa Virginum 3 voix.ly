@@ -9,20 +9,26 @@ global = {
 
 soprano = \fixed c' {
   \global
-  es4 g as bes c' bes as g bes es'4 4 d' f'8[es']d'4 c' bes4 \breathe
-  4 es' bes c'4 4 bes as g f g bes as g as f es2\bar "|."
+  es4 g as bes c' bes as g
+  bes es'4 4 d' f'8[es']d'4 c' bes4 \breathe
+  4 es' bes c'4 4 bes as g
+  f g bes as g as f es2\bar "|."
 }
 
 alto = \fixed c' {
   \global
-  es4 4 4 4 4 d es8[f]es4 f g8[f]g[a]bes4 4 8[g] a4 bes4
-  8[as]g4 g as4 8[g]f4 es8[f] es4 d es4 4 4 4 4. d8 es2
+  es4 4 4 4 4 d es8[f] es4
+  f g8[f]g[a]bes4 4 8[g] a4 bes4
+  8[as]g4 g as4 8[g]f4 es8[f] es4
+  d es4 4 4 4 4. d8 es2
 }
 
 bass = \fixed c {
   \global
-  es4 c c g, as, bes, c8[d] es4 d c c bes, d8[c] f4 8[es] d4 \breathe
-  bes, c es as8[g]f[es]d4 c8[d]es4 bes,4 es g f c f,8[g,]as,[bes,]es2
+  es4 c c g, as, bes, c8[d] es4
+  d c c bes, d8[c] f4 8[es] d4 \breathe
+  bes, c es as8[g]f[es]d4 c8[d]es4
+  bes,4 es g, f, c f,8[g,]as,[bes,]es2
 }
 
 verseOne = \strophemode #1 ##f \lyricmode {
