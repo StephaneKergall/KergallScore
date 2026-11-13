@@ -1,4 +1,5 @@
 # <a href="mailto:stef.kergall@gmail.com"><img src=".doc/logos/KergallScore-nobackground.png" style="vertical-align: middle;" width="40px"><span style="vertical-align: middle;"><b>ergallScore</b></span></a>
+> Edition de partitions de musique
 
 ## Fonctionalités
 
