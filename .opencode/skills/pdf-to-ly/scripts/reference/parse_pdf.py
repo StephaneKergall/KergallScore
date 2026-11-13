@@ -167,6 +167,8 @@ def parse_content(content, page_no, widths_by_font, font_names):
     charspace = wordspace = 0
     glyphs = []
     segments = []
+    paths = []
+    path_segs = []
     cur_path = []
 
     def show_string(sbytes):
@@ -264,18 +266,41 @@ def parse_content(content, page_no, widths_by_font, font_names):
                 x, y = stack[-2], stack[-1]
                 if cur_path:
                     x0, y0 = cur_path[-1]
-                    segments.append((pt(ctm, x0, y0), pt(ctm, x, y)))
+                    seg = (pt(ctm, x0, y0), pt(ctm, x, y))
+                    segments.append(seg)
+                    path_segs.append(seg)
                 cur_path.append((x, y))
             else:  # c: approximation par l'extrémité
                 x, y = stack[-2], stack[-1]
                 if cur_path:
                     x0, y0 = cur_path[-1]
-                    segments.append((pt(ctm, x0, y0), pt(ctm, x, y)))
+                    seg = (pt(ctm, x0, y0), pt(ctm, x, y))
+                    segments.append(seg)
+                    path_segs.append(seg)
                 cur_path.append((x, y))
+        elif op == "re":
+            # Rectangle (barres de mesure, silences, lignes supplémentaires) :
+            # émettre ses 4 arêtes pour que la géométrie soit complète.
+            if len(stack) >= 4:
+                rx, ry, rw, rh = stack[-4:]
+                p1 = pt(ctm, rx, ry)
+                p2 = pt(ctm, rx + rw, ry)
+                p3 = pt(ctm, rx + rw, ry + rh)
+                p4 = pt(ctm, rx, ry + rh)
+                for a, b in ((p1, p2), (p2, p3), (p3, p4), (p4, p1)):
+                    seg = (a, b)
+                    segments.append(seg)
+                    path_segs.append(seg)
+                cur_path = [(rx, ry)]
         elif op in ("S", "s", "f", "F", "f*", "B", "b", "B*", "b*", "n"):
+            if path_segs:
+                paths.append(path_segs)
+                path_segs = []
             cur_path = []
         stack = []
-    return glyphs, segments
+    if path_segs:
+        paths.append(path_segs)
+    return glyphs, segments, paths
 
 
 def read_font_widths(page):
@@ -343,8 +368,9 @@ def _parse_chunk(args):
         content = page.get_contents()
         data = content.get_data() if content is not None else b""
         widths_by_font, font_names, font_files = read_font_widths(page)
-        glyphs, segments = parse_content(data, no, widths_by_font, font_names)
-        pages.append({"page": no, "glyphs": glyphs, "segments": segments})
+        glyphs, segments, paths = parse_content(data, no, widths_by_font, font_names)
+        pages.append({"page": no, "glyphs": glyphs, "segments": segments,
+                      "paths": paths})
         for key, (base, ext, fdata) in font_files.items():
             fonts[key] = (base, ext, fdata)
     return pages, fonts
