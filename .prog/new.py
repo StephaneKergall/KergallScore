@@ -1285,7 +1285,7 @@ class PartsTab(wx.Panel):
                             0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
                         )
                         widget = wx.SpinCtrl(
-                            row, min=1, max=len(NUMBERS),
+                            row, min=0, max=len(NUMBERS),
                             initial=field["default"],
                         )
                         row_sizer.Add(widget, 0, wx.ALIGN_CENTER_VERTICAL)
@@ -1305,7 +1305,7 @@ class PartsTab(wx.Panel):
                             0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 5,
                         )
                         widget = wx.SpinCtrl(
-                            row, min=1, max=len(NUMBERS),
+                            row, min=0, max=len(NUMBERS),
                             initial=field["default"],
                         )
                         row_sizer.Add(widget, 0, wx.ALIGN_CENTER_VERTICAL)
